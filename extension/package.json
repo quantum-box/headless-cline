@@ -1,0 +1,91 @@
+{
+    "name": "headless-cline",
+    "displayName": "Headless Cline",
+    "description": "HAutonomous coding agent right in your IDE, capable of creating/editing files, executing commands, using the browser, and more with your permission every step of the way.",
+    "version": "1.0.4",
+    "engines": {
+        "vscode": "^1.77.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/takanorifukuyama/headless-cline.git"
+    },
+    "license": "https://github.com/takanorifukuyama/headless-cline/blob/main/LICENSE",
+    "publisher": "takanorifukuyama",
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+      "*"
+    ],
+    "main": "./dist/extension.js",
+    "contributes": {
+        "commands": [
+            {
+              "command": "headless-cline.helloWorld",
+              "title": "Hello world",
+              "icon": "$(add)"
+            },
+            {
+                "command": "headless-cline.plusButtonClicked",
+                "title": "New Task",
+                "icon": "$(add)"
+            },
+            {
+                "command": "headless-cline.mcpButtonClicked",
+                "title": "MCP Servers",
+                "icon": "$(server)"
+            },
+            {
+                "command": "headless-cline.historyButtonClicked",
+                "title": "History",
+                "icon": "$(history)"
+            },
+            {
+                "command": "headless-cline.popoutButtonClicked",
+                "title": "Open in Editor",
+                "icon": "$(link-external)"
+            },
+            {
+                "command": "headless-cline.settingsButtonClicked",
+                "title": "Settings",
+                "icon": "$(settings-gear)"
+            },
+            {
+                "command": "headless-cline.openInNewTab",
+                "title": "Open In New Tab",
+                "category": "Headless Cline"
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "yarn run package",
+        "compile": "webpack",
+        "watch": "webpack --watch",
+        "package": "webpack --mode production --devtool hidden-source-map",
+        "compile-tests": "tsc -p . --outDir out",
+        "watch-tests": "tsc -p . -w --outDir out",
+        "pretest": "yarn run compile-tests && yarn run compile && yarn run lint",
+        "lint": "eslint src --ext ts",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/glob": "^8.0.1",
+        "@types/mocha": "^10.0.1",
+        "@types/node": "16.x",
+        "@types/vscode": "^1.77.0",
+        "@typescript-eslint/eslint-plugin": "^5.49.0",
+        "@typescript-eslint/parser": "^5.49.0",
+        "@vscode/test-electron": "^2.2.2",
+        "eslint": "^8.38.0",
+        "eslint-config-prettier": "^8.8.0",
+        "eslint-plugin-prettier": "^4.2.1",
+        "glob": "^8.1.0",
+        "mocha": "^10.1.0",
+        "prettier": "^2.8.7",
+        "ts-loader": "^9.4.2",
+        "typescript": "^4.9.4",
+        "webpack": "^5.75.0",
+        "webpack-cli": "^5.0.1"
+    }
+}
