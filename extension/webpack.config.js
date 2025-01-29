@@ -1,7 +1,9 @@
 //@ts-check
 
+// biome-ignore lint/suspicious/noRedundantUseStrict: <explanation>
 'use strict'
 
+// biome-ignore lint/style/useNodejsImportProtocol: <explanation>
 const path = require('path')
 
 //@ts-check
