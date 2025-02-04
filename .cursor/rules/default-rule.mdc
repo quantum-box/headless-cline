@@ -1,0 +1,49 @@
+---
+description: 
+globs: *.tsx,*.ts,*.rs
+---
+# VSCode Headless Claude Extension プロジェクト構成
+
+## プロジェクト概要
+このプロジェクトは、VSCode上でAnthropicのClaude APIを利用してチャットができる拡張機能です。
+
+## ファイル構成
+
+### メインファイル
+- `extension/src/extension.ts`
+  - VSCode拡張機能のエントリーポイント
+  - コマンドの登録と実行を管理
+  - WebAssemblyモジュールの読み込みと実行
+
+- `src/lib.rs`
+  - WebAssemblyにビルドされるRustコード
+  - extension側のNode.jsから呼び出される
+  - コアロジックの実装
+
+## 技術スタック
+- **フロントエンド**: TypeScript (VSCode Extension)
+- **バックエンド**: Rust + WebAssembly
+- **API**: Anthropic Claude 3.5 Sonnet API
+
+## 主な機能
+1. VSCode上でコマンドを実行することで、Claude APIと対話が可能
+2. RustをWebAssemblyにコンパイルすることで、効率的なAPI通信を実現
+3. エラーハンドリングとロギング機能を実装
+
+## コンポーネント詳細
+
+### VSCode Extension (TypeScript)
+- コマンドの登録と実行
+- WebAssemblyモジュールの読み込みと実行
+- ユーザーインターフェースの提供（情報メッセージの表示）
+
+### Rust Backend
+- Claude APIとの通信処理
+- JSONシリアライズ/デシリアライズ
+- エラーハンドリングとロギング
+- WebAssemblyとのインターフェース
+
+## 開発ガイドライン
+1. コアロジックは全てRustで実装
+2. TypeScript側は主にUI操作とWebAssemblyモジュールの呼び出しに専念
+3. エラーハンドリングとロギングは適切に実装すること
