@@ -89,11 +89,12 @@ pub async fn apply_git_fallback(hunk: &Hunk, content: &[String]) -> EditResult {
     let file_path = temp_dir.path().join("file.txt");
 
     // Initialize git repository
-    if let Err(_) = Command::new("git")
+    if Command::new("git")
         .arg("init")
         .current_dir(&temp_dir)
         .output()
         .await
+        .is_err()
     {
         return EditResult {
             confidence: 0.0,
@@ -107,11 +108,12 @@ pub async fn apply_git_fallback(hunk: &Hunk, content: &[String]) -> EditResult {
         vec!["config", "user.name", "Temp"],
         vec!["config", "user.email", "temp@example.com"],
     ] {
-        if let Err(_) = Command::new("git")
+        if Command::new("git")
             .args(cmd)
             .current_dir(&temp_dir)
             .output()
             .await
+            .is_err()
         {
             return EditResult {
                 confidence: 0.0,
@@ -153,60 +155,65 @@ pub async fn apply_git_fallback(hunk: &Hunk, content: &[String]) -> EditResult {
     let replace_text = replace_lines.join("\n");
 
     // Try first strategy
-    if let Ok(_) = fs::write(&file_path, &original_text).await {
-        if let Ok(_) = Command::new("git")
-            .args(&["add", "file.txt"])
+    if fs::write(&file_path, &original_text).await.is_ok() {
+        if Command::new("git")
+            .args(["add", "file.txt"])
             .current_dir(&temp_dir)
             .output()
             .await
+            .is_ok()
         {
             if let Ok(output) = Command::new("git")
-                .args(&["commit", "-m", "original"])
+                .args(["commit", "-m", "original"])
                 .current_dir(&temp_dir)
                 .output()
                 .await
             {
                 let original_commit = String::from_utf8_lossy(&output.stdout);
-                if let Ok(_) = fs::write(&file_path, &search_text).await {
-                    if let Ok(_) = Command::new("git")
-                        .args(&["add", "file.txt"])
+                if fs::write(&file_path, &search_text).await.is_ok() {
+                    if Command::new("git")
+                        .args(["add", "file.txt"])
                         .current_dir(&temp_dir)
                         .output()
                         .await
+                        .is_ok()
                     {
                         if let Ok(output) = Command::new("git")
-                            .args(&["commit", "-m", "search"])
+                            .args(["commit", "-m", "search"])
                             .current_dir(&temp_dir)
                             .output()
                             .await
                         {
                             let _search_commit = String::from_utf8_lossy(&output.stdout);
-                            if let Ok(_) = fs::write(&file_path, &replace_text).await {
-                                if let Ok(_) = Command::new("git")
-                                    .args(&["add", "file.txt"])
+                            if fs::write(&file_path, &replace_text).await.is_ok() {
+                                if Command::new("git")
+                                    .args(["add", "file.txt"])
                                     .current_dir(&temp_dir)
                                     .output()
                                     .await
+                                    .is_ok()
                                 {
                                     if let Ok(output) = Command::new("git")
-                                        .args(&["commit", "-m", "replace"])
+                                        .args(["commit", "-m", "replace"])
                                         .current_dir(&temp_dir)
                                         .output()
                                         .await
                                     {
                                         let replace_commit =
                                             String::from_utf8_lossy(&output.stdout);
-                                        if let Ok(_) = Command::new("git")
-                                            .args(&["checkout", &original_commit])
+                                        if Command::new("git")
+                                            .args(["checkout", &original_commit])
                                             .current_dir(&temp_dir)
                                             .output()
                                             .await
+                                            .is_ok()
                                         {
-                                            if let Ok(_) = Command::new("git")
+                                            if Command::new("git")
                                                 .args(["cherry-pick", "--minimal", &replace_commit])
                                                 .current_dir(&temp_dir)
                                                 .output()
                                                 .await
+                                                .is_ok()
                                             {
                                                 if let Ok(new_text) =
                                                     fs::read_to_string(&file_path).await

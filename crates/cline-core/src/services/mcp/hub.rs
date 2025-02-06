@@ -164,7 +164,7 @@ impl McpHub {
     pub async fn call_tool(
         &self,
         server_name: &str,
-        tool_name: &str,
+        _tool_name: &str,
         tool_arguments: Option<serde_json::Value>,
     ) -> Result<McpToolCallResponse> {
         let connections = self.connections.lock().unwrap();
