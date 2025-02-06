@@ -5,7 +5,6 @@ mod unified;
 pub use new_unified::NewUnifiedDiffStrategy;
 pub use search_replace::SearchReplaceDiffStrategy;
 
-
 use crate::services::diff::types::*;
 
 pub fn get_diff_strategy(

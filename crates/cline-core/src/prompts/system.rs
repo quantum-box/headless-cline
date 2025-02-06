@@ -1,7 +1,5 @@
 use crate::mcp::McpHub;
-use crate::modes::{
-    get_mode_by_slug, CustomModePrompts, Mode, ModeConfig, PromptComponent, MODES,
-};
+use crate::modes::{get_mode_by_slug, CustomModePrompts, Mode, ModeConfig, PromptComponent, MODES};
 use crate::prompts::tools::get_tool_descriptions_for_mode;
 use crate::sections::{
     add_custom_instructions, get_capabilities_section, get_mcp_servers_section, get_modes_section,
