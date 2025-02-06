@@ -1,6 +1,7 @@
 use crate::services::mcp::McpHub;
 use crate::services::diff::DiffStrategy;
 
+#[allow(dead_code)]
 pub fn get_capabilities_section(
     cwd: &str,
     supports_computer_use: bool,
