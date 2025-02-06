@@ -1,5 +1,6 @@
 use crate::prompts::tools::types::ToolArgs;
 
+#[allow(dead_code)]
 pub fn get_insert_content_description(args: &ToolArgs) -> String {
     format!(
         r##"## insert_content

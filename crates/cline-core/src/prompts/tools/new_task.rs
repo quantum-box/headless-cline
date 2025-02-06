@@ -1,5 +1,6 @@
 use crate::prompts::tools::types::ToolArgs;
 
+#[allow(dead_code)]
 pub fn get_new_task_description(_args: &ToolArgs) -> String {
     r#"## new_task
 Description: Create a new task with a specified starting mode and initial message. This tool instructs the system to create a new Cline instance in the given mode with the provided message.
