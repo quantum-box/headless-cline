@@ -1,7 +1,6 @@
 use crate::mcp::McpHub;
 use crate::modes::{
-    get_mode_by_slug, get_role_definition, CustomModePrompts, Mode, ModeConfig, PromptComponent,
-    DEFAULT_MODE_SLUG, MODES,
+    get_mode_by_slug, CustomModePrompts, Mode, ModeConfig, PromptComponent, MODES,
 };
 use crate::prompts::tools::get_tool_descriptions_for_mode;
 use crate::sections::{
@@ -11,7 +10,7 @@ use crate::sections::{
 };
 use crate::services::diff::DiffStrategy;
 use std::collections::HashMap;
-use std::fs;
+
 use std::path::Path;
 
 use super::PreferredLanguage;

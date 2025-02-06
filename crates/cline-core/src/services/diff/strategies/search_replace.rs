@@ -1,5 +1,5 @@
 use crate::services::diff::types::{
-    DiffResult, DiffResultDetails, DiffStrategy, MatchedRange, ToolArgs,
+    DiffResult, DiffResultDetails, DiffStrategy, ToolArgs,
 };
 use async_trait::async_trait;
 use strsim::normalized_levenshtein;

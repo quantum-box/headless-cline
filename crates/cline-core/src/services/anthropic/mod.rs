@@ -3,7 +3,7 @@ use futures_util::StreamExt;
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::env;
-use std::time::{SystemTime, UNIX_EPOCH};
+
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {

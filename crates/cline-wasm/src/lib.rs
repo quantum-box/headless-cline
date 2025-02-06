@@ -13,9 +13,9 @@ pub async fn hellp_world() -> Result<String, JsValue> {
     tracing_wasm::try_set_as_global_default()
         .unwrap_or_else(|e| tracing::warn!("failed to set tracing: {}", e));
 
-    Ok(claude_api("こんにちは！")
+    claude_api("こんにちは！")
         .await
-        .map_err(|e| JsValue::from_str(e.to_string().as_str()))?)
+        .map_err(|e| JsValue::from_str(e.to_string().as_str()))
 }
 
 #[derive(Serialize)]
@@ -45,7 +45,9 @@ struct Content {
 #[derive(Deserialize)]
 struct StreamResponse {
     #[serde(rename = "type")]
+    #[allow(dead_code)]
     response_type: String,
+    #[allow(dead_code)]
     index: Option<i32>,
     delta: Option<Delta>,
 }

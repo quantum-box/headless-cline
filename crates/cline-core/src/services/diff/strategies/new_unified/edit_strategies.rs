@@ -1,6 +1,6 @@
 use super::search_strategies::validate_edit_result;
-use super::types::{Change, ChangeType, EditResult, Hunk};
-use std::path::Path;
+use super::types::{ChangeType, EditResult, Hunk};
+
 use tempfile::tempdir;
 use tokio::fs;
 use tokio::process::Command;
@@ -180,7 +180,7 @@ pub async fn apply_git_fallback(hunk: &Hunk, content: &[String]) -> EditResult {
                             .output()
                             .await
                         {
-                            let search_commit = String::from_utf8_lossy(&output.stdout);
+                            let _search_commit = String::from_utf8_lossy(&output.stdout);
                             if let Ok(_) = fs::write(&file_path, &replace_text).await {
                                 if let Ok(_) = Command::new("git")
                                     .args(&["add", "file.txt"])

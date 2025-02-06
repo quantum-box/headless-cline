@@ -285,7 +285,7 @@ impl Cline {
 
     pub async fn ask(
         &mut self,
-        ask_type: String,
+        _ask_type: String,
         text: Option<String>,
         partial: Option<bool>,
     ) -> Result<(AskResponse, Option<String>, Option<Vec<String>>)> {
@@ -360,7 +360,7 @@ impl Cline {
 
     pub async fn say(
         &mut self,
-        say_type: String,
+        _say_type: String,
         text: Option<String>,
         images: Option<Vec<String>>,
         partial: Option<bool>,

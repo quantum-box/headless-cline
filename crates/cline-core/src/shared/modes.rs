@@ -52,7 +52,7 @@ pub fn get_mode_by_slug(mode: Mode, custom_modes: Option<&[ModeConfig]>) -> Opti
             return Some(mode_config);
         }
     }
-    modes.iter().find(|m| m.slug == mode)
+    MODES.iter().find(|m| m.slug == mode)
 }
 
 pub fn get_role_definition(mode: &str, custom_modes: Option<&[ModeConfig]>) -> String {

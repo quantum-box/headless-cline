@@ -1,14 +1,12 @@
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use anyhow::{Context, Result};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde_json::json;
 use tokio::sync::mpsc;
-use tokio::time::sleep;
 
 use super::types::*;
 
@@ -130,7 +128,7 @@ impl McpHub {
         self.is_connecting = true;
 
         let mut connections = self.connections.lock().unwrap();
-        let current_names: Vec<String> =
+        let _current_names: Vec<String> =
             connections.iter().map(|c| c.server.name.clone()).collect();
 
         // 削除されたサーバーを削除
@@ -166,7 +164,7 @@ impl McpHub {
     pub async fn call_tool(
         &self,
         server_name: &str,
-        _tool_name: &str,
+        tool_name: &str,
         tool_arguments: Option<serde_json::Value>,
     ) -> Result<McpToolCallResponse> {
         let connections = self.connections.lock().unwrap();
@@ -211,7 +209,7 @@ impl McpHub {
     pub async fn toggle_tool_always_allow(
         &self,
         server_name: &str,
-        _tool_name: &str,
+        tool_name: &str,
         should_allow: bool,
     ) -> Result<()> {
         let content = fs::read_to_string(&self.settings_path)?;
