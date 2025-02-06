@@ -215,28 +215,27 @@ pub struct ModeConfig {
     // ModeConfigの具体的なフィールドは必要に応じて追加
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ClineMessage {
-    pub ts: i64,
-    #[serde(rename = "type")]
-    pub message_type: ClineMessageType,
-    pub ask: Option<ClineAsk>,
-    pub say: Option<ClineSay>,
-    pub text: Option<String>,
-    pub images: Option<Vec<String>>,
-    pub partial: Option<bool>,
-    pub reasoning: Option<String>,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(tag = "type")]
+pub enum ClineMessage {
+    Ask {
+        ts: i64,
+        text: Option<String>,
+        ask: ClineAsk,
+        partial: Option<bool>,
+        reasoning: Option<String>,
+    },
+    Say {
+        ts: i64,
+        text: Option<String>,
+        say: ClineSay,
+        images: Option<Vec<String>>,
+        partial: Option<bool>,
+        reasoning: Option<String>,
+    },
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ClineMessageType {
-    Ask,
-    Say,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum ClineAsk {
     Followup,
@@ -252,7 +251,7 @@ pub enum ClineAsk {
     UseMcpServer,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum ClineSay {
     Task,

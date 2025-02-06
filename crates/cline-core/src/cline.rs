@@ -1,10 +1,114 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::fs;
 use uuid::Uuid;
 
 use crate::services::anthropic::{AnthropicClient, Message};
+use crate::services::terminal::TerminalManager;
+use crate::shared::message::{ClineAsk, ClineMessage, ClineSay};
+
+// グローバル定数
+struct GlobalFileNames {
+    ui_messages: &'static str,
+    api_conversation_history: &'static str,
+}
+
+const GLOBAL_FILE_NAMES: GlobalFileNames = GlobalFileNames {
+    ui_messages: "ui_messages.json",
+    api_conversation_history: "api_conversation_history.json",
+};
+
+// APIメトリクス関連の型
+#[derive(Debug)]
+struct ApiMetrics {
+    total_tokens_in: u32,
+    total_tokens_out: u32,
+    total_cache_writes: u32,
+    total_cache_reads: u32,
+    total_cost: f64,
+}
+
+#[derive(Debug, Serialize)]
+struct TaskHistory {
+    id: String,
+    ts: i64,
+    task: String,
+    tokens_in: u32,
+    tokens_out: u32,
+    cache_writes: u32,
+    cache_reads: u32,
+    total_cost: f64,
+}
+
+// ツール関連の型
+#[derive(Debug)]
+pub enum ToolResponse {
+    Success(String),
+    Error(String),
+}
+
+impl From<&str> for ToolResponse {
+    fn from(s: &str) -> Self {
+        ToolResponse::Success(s.to_string())
+    }
+}
+
+#[derive(Debug)]
+pub enum ToolUseName {
+    ExecuteCommand,
+    WriteToFile,
+    ReadFile,
+}
+
+impl std::fmt::Display for ToolUseName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ToolUseName::ExecuteCommand => write!(f, "execute command"),
+            ToolUseName::WriteToFile => write!(f, "write to file"),
+            ToolUseName::ReadFile => write!(f, "read file"),
+        }
+    }
+}
+
+// ユーティリティ関数
+async fn file_exists(path: &PathBuf) -> bool {
+    tokio::fs::metadata(path).await.is_ok()
+}
+
+fn get_api_metrics(messages: &[ClineMessage]) -> ApiMetrics {
+    // 実際のメトリクス計算ロジックを実装
+    ApiMetrics {
+        total_tokens_in: 0,
+        total_tokens_out: 0,
+        total_cache_writes: 0,
+        total_cache_reads: 0,
+        total_cost: 0.0,
+    }
+}
+
+// フォーマットレスポンス用のモジュール
+mod format_response {
+    pub fn tool_error(msg: String) -> String {
+        format!("Tool execution error: {}", msg)
+    }
+
+    pub fn missing_tool_parameter_error(param_name: &str) -> String {
+        format!("Missing required parameter: {}", param_name)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum AskResponse {
+    YesButtonClicked,
+    NoButtonClicked,
+    MessageResponse,
+}
 
 #[derive(Debug, Clone)]
 pub struct Cline {
@@ -20,22 +124,9 @@ pub struct Cline {
     did_complete_reading_stream: bool,
     did_reject_tool: bool,
     did_already_use_tool: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(tag = "type")]
-pub enum ClineMessage {
-    Ask {
-        ts: i64,
-        text: Option<String>,
-        partial: bool,
-    },
-    Say {
-        ts: i64,
-        text: Option<String>,
-        images: Option<Vec<String>>,
-        partial: bool,
-    },
+    terminal_manager: Option<Arc<Mutex<dyn TerminalManager + Send + Sync>>>,
+    abort: bool,
+    provider: Option<Arc<dyn Provider + Send + Sync>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -92,13 +183,6 @@ struct BrowserActionResult {
     screenshot: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum AskResponse {
-    YesButtonClicked,
-    NoButtonClicked,
-    MessageResponse,
-}
-
 impl Cline {
     pub fn new(
         workspace_path: PathBuf,
@@ -119,6 +203,9 @@ impl Cline {
             did_complete_reading_stream: false,
             did_reject_tool: false,
             did_already_use_tool: false,
+            terminal_manager: None,
+            abort: false,
+            provider: None,
         })
     }
 
@@ -180,8 +267,10 @@ impl Cline {
         self.add_cline_message(ClineMessage::Say {
             ts: current_time,
             text: Some("API request started...".to_string()),
+            say: ClineSay::ApiReqStarted,
             images: None,
-            partial: true,
+            partial: None,
+            reasoning: None,
         });
 
         let mut last_chunk = String::new();
@@ -201,8 +290,10 @@ impl Cline {
                         this.add_cline_message(ClineMessage::Say {
                             ts: current_time,
                             text: Some(chunk),
+                            say: ClineSay::Text,
                             images: None,
-                            partial: true,
+                            partial: Some(true),
+                            reasoning: None,
                         });
                     }
                 }),
@@ -213,8 +304,10 @@ impl Cline {
         self.add_cline_message(ClineMessage::Say {
             ts: current_time,
             text: Some(assistant_message.clone()),
+            say: ClineSay::Text,
             images: None,
-            partial: false,
+            partial: None,
+            reasoning: None,
         });
 
         // 会話履歴に追加
@@ -252,8 +345,10 @@ impl Cline {
         self.add_cline_message(ClineMessage::Say {
             ts: current_time,
             text: task.clone(),
+            say: ClineSay::Task,
             images: images.clone(),
-            partial: false,
+            partial: None,
+            reasoning: None,
         });
 
         // タスク内容を構築
@@ -288,7 +383,7 @@ impl Cline {
 
     pub async fn ask(
         &mut self,
-        _ask_type: String,
+        ask_type: String,
         text: Option<String>,
         partial: Option<bool>,
     ) -> Result<(AskResponse, Option<String>, Option<Vec<String>>)> {
@@ -301,9 +396,15 @@ impl Cline {
         if let Some(is_partial) = partial {
             if is_partial {
                 let last_message = self.cline_messages.last().cloned();
-                let is_updating_previous_partial = last_message
-                    .as_ref()
-                    .is_some_and(|msg| matches!(msg, ClineMessage::Ask { partial: true, .. }));
+                let is_updating_previous_partial = last_message.as_ref().is_some_and(|msg| {
+                    matches!(
+                        msg,
+                        ClineMessage::Ask {
+                            partial: Some(true),
+                            ..
+                        }
+                    )
+                });
 
                 if is_updating_previous_partial {
                     // 既存の部分メッセージを更新
@@ -312,7 +413,9 @@ impl Cline {
                         self.add_cline_message(ClineMessage::Ask {
                             ts,
                             text,
-                            partial: true,
+                            ask: ClineAsk::Followup,
+                            partial: Some(true),
+                            reasoning: None,
                         });
                     }
                 } else {
@@ -320,16 +423,24 @@ impl Cline {
                     self.add_cline_message(ClineMessage::Ask {
                         ts: current_time,
                         text,
-                        partial: true,
+                        ask: ClineAsk::Followup,
+                        partial: Some(true),
+                        reasoning: None,
                     });
                 }
                 // 部分的な更新の場合は処理を中断
                 anyhow::bail!("Current ask promise was ignored");
             } else {
                 let last_message = self.cline_messages.last().cloned();
-                let is_updating_previous_partial = last_message
-                    .as_ref()
-                    .is_some_and(|msg| matches!(msg, ClineMessage::Ask { partial: true, .. }));
+                let is_updating_previous_partial = last_message.as_ref().is_some_and(|msg| {
+                    matches!(
+                        msg,
+                        ClineMessage::Ask {
+                            partial: Some(true),
+                            ..
+                        }
+                    )
+                });
 
                 // 完了メッセージの処理
                 if is_updating_previous_partial {
@@ -338,14 +449,18 @@ impl Cline {
                         self.add_cline_message(ClineMessage::Ask {
                             ts,
                             text,
-                            partial: false,
+                            ask: ClineAsk::Followup,
+                            partial: Some(false),
+                            reasoning: None,
                         });
                     }
                 } else {
                     self.add_cline_message(ClineMessage::Ask {
                         ts: current_time,
                         text,
-                        partial: false,
+                        ask: ClineAsk::Followup,
+                        partial: Some(false),
+                        reasoning: None,
                     });
                 }
             }
@@ -354,7 +469,9 @@ impl Cline {
             self.add_cline_message(ClineMessage::Ask {
                 ts: current_time,
                 text,
-                partial: false,
+                ask: ClineAsk::Followup,
+                partial: None,
+                reasoning: None,
             });
         }
 
@@ -363,7 +480,7 @@ impl Cline {
 
     pub async fn say(
         &mut self,
-        _say_type: String,
+        say_type: String,
         text: Option<String>,
         images: Option<Vec<String>>,
         partial: Option<bool>,
@@ -375,9 +492,15 @@ impl Cline {
 
         if let Some(is_partial) = partial {
             let last_message = self.cline_messages.last().cloned();
-            let is_updating_previous_partial = last_message
-                .as_ref()
-                .is_some_and(|msg| matches!(msg, ClineMessage::Say { partial: true, .. }));
+            let is_updating_previous_partial = last_message.as_ref().is_some_and(|msg| {
+                matches!(
+                    msg,
+                    ClineMessage::Say {
+                        partial: Some(true),
+                        ..
+                    }
+                )
+            });
 
             if is_partial {
                 if is_updating_previous_partial {
@@ -387,8 +510,10 @@ impl Cline {
                         self.add_cline_message(ClineMessage::Say {
                             ts,
                             text,
+                            say: ClineSay::Text,
                             images,
-                            partial: true,
+                            partial: Some(true),
+                            reasoning: None,
                         });
                     }
                 } else {
@@ -396,8 +521,10 @@ impl Cline {
                     self.add_cline_message(ClineMessage::Say {
                         ts: current_time,
                         text,
+                        say: ClineSay::Text,
                         images,
-                        partial: true,
+                        partial: Some(true),
+                        reasoning: None,
                     });
                 }
             } else {
@@ -408,16 +535,20 @@ impl Cline {
                         self.add_cline_message(ClineMessage::Say {
                             ts,
                             text,
+                            say: ClineSay::Text,
                             images,
-                            partial: false,
+                            partial: Some(false),
+                            reasoning: None,
                         });
                     }
                 } else {
                     self.add_cline_message(ClineMessage::Say {
                         ts: current_time,
                         text,
+                        say: ClineSay::Text,
                         images,
-                        partial: false,
+                        partial: Some(false),
+                        reasoning: None,
                     });
                 }
             }
@@ -426,8 +557,10 @@ impl Cline {
             self.add_cline_message(ClineMessage::Say {
                 ts: current_time,
                 text,
+                say: ClineSay::Text,
                 images,
-                partial: false,
+                partial: None,
+                reasoning: None,
             });
         }
 
@@ -473,4 +606,183 @@ impl Cline {
 
         Ok(())
     }
+
+    pub async fn overwrite_cline_messages(&mut self, messages: Vec<ClineMessage>) -> Result<()> {
+        self.cline_messages = messages;
+        self.save_cline_messages().await
+    }
+
+    pub async fn get_saved_cline_messages(&self) -> Result<Vec<ClineMessage>> {
+        let task_dir = self.ensure_task_directory_exists().await?;
+        let file_path = task_dir.join(GLOBAL_FILE_NAMES.ui_messages);
+
+        if file_exists(&file_path).await {
+            let content = fs::read_to_string(&file_path).await?;
+            Ok(serde_json::from_str(&content)?)
+        } else {
+            // 古いパスをチェック
+            let old_path = task_dir.join("claude_messages.json");
+            if file_exists(&old_path).await {
+                let content = fs::read_to_string(&old_path).await?;
+                fs::remove_file(&old_path).await?; // 古いファイルを削除
+                Ok(serde_json::from_str(&content)?)
+            } else {
+                Ok(Vec::new())
+            }
+        }
+    }
+
+    pub async fn save_cline_messages(&self) -> Result<()> {
+        let task_dir = self.ensure_task_directory_exists().await?;
+        let file_path = task_dir.join(GLOBAL_FILE_NAMES.ui_messages);
+
+        fs::write(&file_path, serde_json::to_string(&self.cline_messages)?).await?;
+
+        // APIメトリクスの計算と保存
+        let api_metrics = get_api_metrics(&self.cline_messages);
+        let task_message = &self.cline_messages[0]; // 最初のメッセージは常にタスクのsay
+        let last_relevant_message = self.cline_messages.iter().rev().find(|m| match m {
+            ClineMessage::Ask { text, .. } => !matches!(
+                text.as_deref(),
+                Some("resume_task" | "resume_completed_task")
+            ),
+            _ => true,
+        });
+
+        if let Some(provider) = &self.provider {
+            provider
+                .update_task_history(TaskHistory {
+                    id: self.task_id.clone(),
+                    ts: match last_relevant_message {
+                        Some(ClineMessage::Ask { ts, .. }) | Some(ClineMessage::Say { ts, .. }) => {
+                            *ts
+                        }
+                        None => 0,
+                    },
+                    task: match task_message {
+                        ClineMessage::Say { text, .. } => text.clone().unwrap_or_default(),
+                        _ => String::new(),
+                    },
+                    tokens_in: api_metrics.total_tokens_in,
+                    tokens_out: api_metrics.total_tokens_out,
+                    cache_writes: api_metrics.total_cache_writes,
+                    cache_reads: api_metrics.total_cache_reads,
+                    total_cost: api_metrics.total_cost,
+                })
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn overwrite_api_conversation_history(
+        &mut self,
+        new_history: Vec<Message>,
+    ) -> Result<()> {
+        self.api_conversation_history = new_history;
+        self.save_api_conversation_history().await
+    }
+
+    pub async fn get_saved_api_conversation_history(&self) -> Result<Vec<Message>> {
+        let task_dir = self.ensure_task_directory_exists().await?;
+        let file_path = task_dir.join(GLOBAL_FILE_NAMES.api_conversation_history);
+
+        if file_exists(&file_path).await {
+            let content = fs::read_to_string(&file_path).await?;
+            Ok(serde_json::from_str(&content)?)
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    pub async fn save_api_conversation_history(&self) -> Result<()> {
+        let task_dir = self.ensure_task_directory_exists().await?;
+        let file_path = task_dir.join(GLOBAL_FILE_NAMES.api_conversation_history);
+
+        fs::write(
+            &file_path,
+            serde_json::to_string(&self.api_conversation_history)?,
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn abort_task(&mut self) {
+        self.abort = true;
+        if let Some(terminal_manager) = &mut self.terminal_manager {
+            terminal_manager.lock().unwrap().dispose_all();
+        }
+        // ブラウザセッションの終了処理なども追加
+    }
+
+    pub async fn execute_command_tool(&mut self, command: String) -> Result<(bool, ToolResponse)> {
+        let terminal_info = self
+            .terminal_manager
+            .as_mut()
+            .ok_or_else(|| anyhow::anyhow!("Terminal manager not initialized"))?
+            .lock()
+            .unwrap()
+            .get_or_create_terminal(self.workspace_path.to_string_lossy().to_string())?;
+
+        let process = self
+            .terminal_manager
+            .as_mut()
+            .ok_or_else(|| anyhow::anyhow!("Terminal manager not initialized"))?
+            .lock()
+            .unwrap()
+            .run_command(terminal_info, command.clone())?;
+
+        // コマンド実行の結果を処理
+        // TypeScriptコードの実装に合わせて、出力の収集とユーザーフィードバックの処理を実装
+
+        Ok((false, "Command executed successfully".into()))
+    }
+
+    pub async fn say_and_create_missing_param_error(
+        &mut self,
+        tool_name: ToolUseName,
+        param_name: String,
+        rel_path: Option<String>,
+    ) -> Result<String> {
+        let error_message = format!(
+            "Roo tried to use {}{} without value for required parameter '{}'. Retrying...",
+            tool_name,
+            rel_path
+                .map(|p| format!(" for '{}'", p))
+                .unwrap_or_default(),
+            param_name
+        );
+
+        self.say("error".to_string(), Some(error_message.clone()), None, None)
+            .await?;
+
+        Ok(format_response::tool_error(
+            format_response::missing_tool_parameter_error(&param_name),
+        ))
+    }
+
+    pub async fn present_assistant_message(&mut self) -> Result<()> {
+        if self.abort {
+            return Err(anyhow::anyhow!("Roo Code instance aborted"));
+        }
+
+        // TypeScriptコードの実装に合わせて、
+        // アシスタントメッセージの表示とツール実行の処理を実装
+
+        Ok(())
+    }
+
+    async fn ensure_task_directory_exists(&self) -> Result<PathBuf> {
+        let task_dir = self.workspace_path.join(".cline").join(&self.task_id);
+        if !task_dir.exists() {
+            tokio::fs::create_dir_all(&task_dir).await?;
+        }
+        Ok(task_dir)
+    }
+}
+
+#[async_trait]
+pub trait Provider: std::fmt::Debug + Send + Sync {
+    async fn update_task_history(&self, history: TaskHistory) -> Result<()>;
 }

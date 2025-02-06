@@ -7,6 +7,9 @@ globs: *.tsx,*.ts,*.rs
 ## プロジェクト概要
 このプロジェクトは、VSCode上でAnthropicのClaude APIを利用してチャットができる拡張機能です。
 
+https://github.com/RooVetGit/Roo-Code
+Roo codeをRustで書き換えるプロジェクトです。
+
 ## ファイル構成
 
 ### メインファイル
