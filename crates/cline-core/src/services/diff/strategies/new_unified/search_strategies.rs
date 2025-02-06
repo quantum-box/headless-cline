@@ -18,6 +18,7 @@ pub fn prepare_search_string(changes: &[Change]) -> String {
         .iter()
         .filter(|c| matches!(c.change_type, ChangeType::Context | ChangeType::Remove))
         .filter_map(|c| c.original_line.as_ref())
+        .map(|s| s.as_str())
         .collect::<Vec<_>>()
         .join("\n")
 }

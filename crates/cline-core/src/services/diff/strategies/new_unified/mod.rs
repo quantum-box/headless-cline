@@ -8,6 +8,7 @@ use edit_strategies::apply_edit;
 use search_strategies::{find_best_match, prepare_search_string};
 use types::{Change, ChangeType, Diff, Hunk};
 
+#[derive(Debug)]
 pub struct NewUnifiedDiffStrategy {
     confidence_threshold: f64,
 }
@@ -22,7 +23,7 @@ impl NewUnifiedDiffStrategy {
     fn parse_unified_diff(&self, diff: &str) -> Diff {
         const MAX_CONTEXT_LINES: usize = 6;
         let mut hunks = Vec::new();
-        let mut current_hunk = None;
+        let mut current_hunk: Option<Hunk> = None;
         let lines: Vec<&str> = diff.lines().collect();
 
         let mut i = 0;
@@ -123,7 +124,7 @@ impl NewUnifiedDiffStrategy {
 
     fn split_hunk(&self, hunk: &Hunk) -> Vec<Hunk> {
         let mut result = Vec::new();
-        let mut current_hunk = None;
+        let mut current_hunk: Option<Hunk> = None;
         let mut context_before = Vec::new();
         let mut context_after = Vec::new();
         const MAX_CONTEXT_LINES: usize = 3;
@@ -179,7 +180,7 @@ impl NewUnifiedDiffStrategy {
 
 #[async_trait]
 impl DiffStrategy for NewUnifiedDiffStrategy {
-    fn get_tool_description(&self, args: ToolArgs) -> String {
+    fn get_tool_description(&self, args: &ToolArgs) -> String {
         format!(
             r#"# apply_diff Tool - Generate Precise Code Changes
 

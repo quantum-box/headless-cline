@@ -64,10 +64,16 @@ Format Requirements:
     ) -> DiffResult {
         match diffy::Patch::from_str(diff_content) {
             Ok(patch) => match diffy::apply(original_content, &patch) {
-                Ok(result) => Ok(result),
-                Err(e) => Err(format!("Failed to apply unified diff: {}", e)),
+                Ok(result) => DiffResult::Success { content: result },
+                Err(e) => DiffResult::Failure {
+                    error: format!("Failed to apply unified diff: {}", e),
+                    details: None,
+                },
             },
-            Err(e) => Err(format!("Failed to parse unified diff: {}", e)),
+            Err(e) => DiffResult::Failure {
+                error: format!("Failed to parse unified diff: {}", e),
+                details: None,
+            },
         }
     }
 }

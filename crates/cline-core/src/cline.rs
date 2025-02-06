@@ -9,7 +9,7 @@ use crate::services::anthropic::{AnthropicClient, Message};
 
 const API_KEY: &str = "";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Cline {
     task_id: String,
     anthropic_client: AnthropicClient,
@@ -181,6 +181,7 @@ impl Cline {
         });
 
         let mut last_chunk = String::new();
+        let mut this = self.clone();
         let assistant_message = self
             .anthropic_client
             .attempt_api_request(
@@ -193,7 +194,7 @@ impl Cline {
                             .unwrap()
                             .as_millis() as i64;
                         last_chunk = chunk.clone();
-                        self.add_cline_message(ClineMessage::Say {
+                        this.add_cline_message(ClineMessage::Say {
                             ts: current_time,
                             text: Some(chunk),
                             images: None,

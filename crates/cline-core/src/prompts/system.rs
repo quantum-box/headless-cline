@@ -47,10 +47,8 @@ async fn generate_prompt(
         get_modes_section(context)
     );
 
-    let mode_clone = mode.clone();
-    let mode_str = mode_clone.unwrap_or_default();
-    let mode_config = get_mode_by_slug(mode_str.clone(), custom_mode_configs)
-        .or_else(|| modes.iter().find(|m| m.slug == mode_str))
+    let mode_config = get_mode_by_slug(mode.clone(), custom_mode_configs)
+        .or_else(|| modes.iter().find(|m| m.slug == mode))
         .unwrap_or(&modes[0]);
 
     let role_definition = prompt_component
@@ -132,9 +130,8 @@ pub async fn system_prompt(
         value.and_then(|prompts| prompts.get(mode))
     }
 
-    let mode_clone = mode.clone();
-    let mode_str = mode_clone.unwrap_or_default();
-    let current_mode = get_mode_by_slug(mode_str.clone(), custom_modes)
+    let mode_str = mode.as_ref().map(String::as_str).unwrap_or("");
+    let current_mode = get_mode_by_slug(mode_str.to_string(), custom_modes)
         .or_else(|| modes.iter().find(|m| m.slug == mode_str))
         .unwrap_or(&modes[0]);
 

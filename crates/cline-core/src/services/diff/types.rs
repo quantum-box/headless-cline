@@ -17,7 +17,16 @@ pub struct MatchedRange {
     pub end: usize,
 }
 
-pub type DiffResult = Result<String, String>;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DiffResult {
+    Success {
+        content: String,
+    },
+    Failure {
+        error: String,
+        details: Option<DiffResultDetails>,
+    },
+}
 
 #[async_trait]
 pub trait DiffStrategy: Debug {

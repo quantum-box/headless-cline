@@ -46,7 +46,7 @@ struct Delta {
 
 pub type MessageCallback = Box<dyn FnMut(String) + Send + 'static>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AnthropicClient {
     client: Client,
     api_key: String,
@@ -97,7 +97,7 @@ impl AnthropicClient {
         &self,
         user_content: String,
         include_file_details: bool,
-        on_chunk: MessageCallback,
+        mut on_chunk: MessageCallback,
     ) -> Result<String> {
         let request_body = ClaudeRequest {
             model: "claude-3-sonnet-20240229".to_string(),

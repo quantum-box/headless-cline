@@ -6,6 +6,7 @@ use strsim::normalized_levenshtein;
 
 const BUFFER_LINES: usize = 20;
 
+#[derive(Debug)]
 pub struct SearchReplaceDiffStrategy {
     fuzzy_threshold: f64,
     buffer_lines: usize,
@@ -76,13 +77,28 @@ Diff format:
         start_line: Option<usize>,
         end_line: Option<usize>,
     ) -> DiffResult {
-        let re =
-            regex::Regex::new(r"<<<<<<< SEARCH\n([\s\S]*?)\n=======\n([\s\S]*?)\n>>>>>>> REPLACE")
-                .map_err(|e| format!("Invalid regex pattern: {}", e))?;
+        let re = match regex::Regex::new(
+            r"<<<<<<< SEARCH\n([\s\S]*?)\n=======\n([\s\S]*?)\n>>>>>>> REPLACE",
+        ) {
+            Ok(re) => re,
+            Err(e) => {
+                return DiffResult::Failure {
+                    error: format!("Invalid regex pattern: {}", e),
+                    details: None,
+                };
+            }
+        };
 
-        let captures = re.captures(diff_content).ok_or_else(|| {
-            "Invalid diff format - missing required SEARCH/REPLACE sections".to_string()
-        })?;
+        let captures = match re.captures(diff_content) {
+            Some(captures) => captures,
+            None => {
+                return DiffResult::Failure {
+                    error: "Invalid diff format - missing required SEARCH/REPLACE sections"
+                        .to_string(),
+                    details: None,
+                };
+            }
+        };
 
         let search_content = captures.get(1).unwrap().as_str();
         let replace_content = captures.get(2).unwrap().as_str();
@@ -91,15 +107,21 @@ Diff format:
         let search_lines: Vec<&str> = search_content.lines().collect();
 
         if search_lines.is_empty() && start_line.is_none() {
-            return Err("Empty search content requires start_line to be specified".to_string());
+            return DiffResult::Failure {
+                error: "Empty search content requires start_line to be specified".to_string(),
+                details: None,
+            };
         }
 
         if search_lines.is_empty() && start_line != end_line {
-            return Err(format!(
-                "Empty search content requires start_line and end_line to be the same (got {}-{})",
-                start_line.unwrap_or(0),
-                end_line.unwrap_or(0)
-            ));
+            return DiffResult::Failure {
+                error: format!(
+                    "Empty search content requires start_line and end_line to be the same (got {}-{})",
+                    start_line.unwrap_or(0),
+                    end_line.unwrap_or(0)
+                ),
+                details: None,
+            };
         }
 
         let mut best_match_index = None;
@@ -113,12 +135,15 @@ Diff format:
                 || end_idx > original_lines.len()
                 || start_idx > end_idx
             {
-                return Err(format!(
-                    "Line range {}-{} is invalid (file has {} lines)",
-                    start,
-                    end,
-                    original_lines.len()
-                ));
+                return DiffResult::Failure {
+                    error: format!(
+                        "Line range {}-{} is invalid (file has {} lines)",
+                        start,
+                        end,
+                        original_lines.len()
+                    ),
+                    details: None,
+                };
             }
 
             let window = &original_lines[start_idx..end_idx];
@@ -148,11 +173,20 @@ Diff format:
         }
 
         if best_match_index.is_none() || best_match_score < self.fuzzy_threshold {
-            return Err(format!(
-                "No sufficiently similar match found ({}% similar, needs {}%)",
-                (best_match_score * 100.0) as i32,
-                (self.fuzzy_threshold * 100.0) as i32
-            ));
+            return DiffResult::Failure {
+                error: format!(
+                    "No sufficiently similar match found ({}% similar, needs {}%)",
+                    (best_match_score * 100.0) as i32,
+                    (self.fuzzy_threshold * 100.0) as i32
+                ),
+                details: Some(DiffResultDetails {
+                    similarity: Some(best_match_score),
+                    threshold: Some(self.fuzzy_threshold),
+                    matched_range: None,
+                    search_content: Some(search_content.to_string()),
+                    best_match: None,
+                }),
+            };
         }
 
         let match_index = best_match_index.unwrap();
@@ -161,6 +195,8 @@ Diff format:
         result.extend(replace_content.lines());
         result.extend_from_slice(&original_lines[match_index + search_lines.len()..]);
 
-        Ok(result.join("\n"))
+        DiffResult::Success {
+            content: result.join("\n"),
+        }
     }
 }
