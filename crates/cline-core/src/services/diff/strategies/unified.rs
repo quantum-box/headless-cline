@@ -1,5 +1,5 @@
-use crate::services::diff::types::{DiffResult, DiffStrategy};
 use crate::prompts::tools::types::ToolArgs;
+use crate::services::diff::types::{DiffResult, DiffStrategy};
 use async_trait::async_trait;
 
 use std::fmt;

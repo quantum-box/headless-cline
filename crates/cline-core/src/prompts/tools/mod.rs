@@ -32,10 +32,10 @@ pub use switch_mode::get_switch_mode_description;
 pub use use_mcp_tool::get_use_mcp_tool_description;
 pub use write_to_file::get_write_to_file_description;
 
+use crate::prompts::tools::types::ToolArgs;
+use crate::services::diff::DiffStrategy;
 use crate::services::mcp::McpHub;
 use crate::shared::modes::{Mode, ModeConfig};
-use crate::services::diff::DiffStrategy;
-use crate::prompts::tools::types::ToolArgs;
 
 #[allow(clippy::too_many_arguments)]
 #[allow(dead_code)]
