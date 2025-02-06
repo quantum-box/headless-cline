@@ -40,7 +40,4 @@ pub trait DiffStrategy: Debug {
     ) -> DiffResult;
 }
 
-pub struct ToolArgs {
-    pub cwd: String,
-    pub tool_options: Option<std::collections::HashMap<String, String>>,
-}
+use crate::prompts::tools::types::ToolArgs;
