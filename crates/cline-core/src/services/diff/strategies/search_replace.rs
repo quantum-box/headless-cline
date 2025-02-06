@@ -6,6 +6,7 @@ use strsim::normalized_levenshtein;
 const BUFFER_LINES: usize = 20;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct SearchReplaceDiffStrategy {
     fuzzy_threshold: f64,
     buffer_lines: usize,

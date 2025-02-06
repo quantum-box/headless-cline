@@ -29,6 +29,7 @@ struct Content {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct StreamResponse {
     #[serde(rename = "type")]
     response_type: String,

@@ -29,6 +29,7 @@ pub enum DiffResult {
 }
 
 #[async_trait]
+#[allow(dead_code)]
 pub trait DiffStrategy: Debug {
     fn get_tool_description(&self, args: &ToolArgs) -> String;
     async fn apply_diff(
