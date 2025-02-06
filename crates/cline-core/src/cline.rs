@@ -6,8 +6,6 @@ use uuid::Uuid;
 
 use crate::services::anthropic::{AnthropicClient, Message};
 
-const API_KEY: &str = "";
-
 #[derive(Debug, Clone)]
 pub struct Cline {
     task_id: String,
@@ -50,26 +48,33 @@ struct ClaudeRequest {
 
 #[derive(Debug, Deserialize)]
 struct ClaudeResponse {
+    #[allow(dead_code)]
     content: Vec<Content>,
 }
 
 #[derive(Debug, Deserialize)]
 struct Content {
+    #[allow(dead_code)]
     text: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct StreamResponse {
     #[serde(rename = "type")]
+    #[allow(dead_code)]
     response_type: String,
+    #[allow(dead_code)]
     index: Option<i32>,
+    #[allow(dead_code)]
     delta: Option<Delta>,
 }
 
 #[derive(Debug, Deserialize)]
 struct Delta {
     #[serde(rename = "type")]
+    #[allow(dead_code)]
     delta_type: String,
+    #[allow(dead_code)]
     text: String,
 }
 
@@ -296,9 +301,9 @@ impl Cline {
         if let Some(is_partial) = partial {
             if is_partial {
                 let last_message = self.cline_messages.last().cloned();
-                let is_updating_previous_partial = last_message.as_ref().is_some_and(|msg| {
-                    matches!(msg, ClineMessage::Ask { partial: true, .. })
-                });
+                let is_updating_previous_partial = last_message
+                    .as_ref()
+                    .is_some_and(|msg| matches!(msg, ClineMessage::Ask { partial: true, .. }));
 
                 if is_updating_previous_partial {
                     // 既存の部分メッセージを更新
@@ -322,9 +327,9 @@ impl Cline {
                 anyhow::bail!("Current ask promise was ignored");
             } else {
                 let last_message = self.cline_messages.last().cloned();
-                let is_updating_previous_partial = last_message.as_ref().is_some_and(|msg| {
-                    matches!(msg, ClineMessage::Ask { partial: true, .. })
-                });
+                let is_updating_previous_partial = last_message
+                    .as_ref()
+                    .is_some_and(|msg| matches!(msg, ClineMessage::Ask { partial: true, .. }));
 
                 // 完了メッセージの処理
                 if is_updating_previous_partial {
@@ -370,9 +375,9 @@ impl Cline {
 
         if let Some(is_partial) = partial {
             let last_message = self.cline_messages.last().cloned();
-            let is_updating_previous_partial = last_message.as_ref().is_some_and(|msg| {
-                matches!(msg, ClineMessage::Say { partial: true, .. })
-            });
+            let is_updating_previous_partial = last_message
+                .as_ref()
+                .is_some_and(|msg| matches!(msg, ClineMessage::Say { partial: true, .. }));
 
             if is_partial {
                 if is_updating_previous_partial {
