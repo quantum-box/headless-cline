@@ -11,9 +11,9 @@ mod read_file;
 mod search_and_replace;
 mod search_files;
 mod switch_mode;
-mod types;
-mod use_mcp_tool;
-mod write_to_file;
+pub mod types;
+pub mod use_mcp_tool;
+pub mod write_to_file;
 
 pub use access_mcp_resource::get_access_mcp_resource_description;
 pub use ask_followup_question::get_ask_followup_question_description;
