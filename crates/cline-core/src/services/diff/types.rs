@@ -40,4 +40,4 @@ pub trait DiffStrategy: Debug {
     ) -> DiffResult;
 }
 
-use crate::prompts::tools::types::ToolArgs;
+pub use crate::prompts::tools::types::ToolArgs;

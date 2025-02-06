@@ -1,4 +1,4 @@
 pub mod message;
 pub mod modes;
 
-pub use modes::{Mode, ModeConfig};
+pub use modes::{Mode, ModeConfig, PromptComponent};
