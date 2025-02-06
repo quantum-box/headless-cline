@@ -166,7 +166,7 @@ impl McpHub {
     pub async fn call_tool(
         &self,
         server_name: &str,
-        tool_name: &str,
+        _tool_name: &str,
         tool_arguments: Option<serde_json::Value>,
     ) -> Result<McpToolCallResponse> {
         let connections = self.connections.lock().unwrap();
@@ -186,7 +186,7 @@ impl McpHub {
         })
     }
 
-    pub async fn read_resource(&self, server_name: &str, uri: &str) -> Result<McpResourceResponse> {
+    pub async fn read_resource(&self, server_name: &str, _uri: &str) -> Result<McpResourceResponse> {
         let connections = self.connections.lock().unwrap();
         let connection = connections
             .iter()
@@ -207,7 +207,7 @@ impl McpHub {
     pub async fn toggle_tool_always_allow(
         &self,
         server_name: &str,
-        tool_name: &str,
+        _tool_name: &str,
         should_allow: bool,
     ) -> Result<()> {
         let content = fs::read_to_string(&self.settings_path)?;
