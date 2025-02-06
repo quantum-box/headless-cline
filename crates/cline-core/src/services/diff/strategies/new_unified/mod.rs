@@ -2,7 +2,7 @@ mod edit_strategies;
 mod search_strategies;
 mod types;
 
-use crate::diff::types::{DiffResult, DiffStrategy, ToolArgs};
+use crate::services::diff::types::{DiffResult, DiffStrategy, ToolArgs};
 use async_trait::async_trait;
 use edit_strategies::apply_edit;
 use search_strategies::{find_best_match, prepare_search_string};

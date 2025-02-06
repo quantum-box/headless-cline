@@ -32,8 +32,8 @@ pub use types::ToolArgs;
 pub use use_mcp_tool::get_use_mcp_tool_description;
 pub use write_to_file::get_write_to_file_description;
 
-use crate::mcp::McpHub;
-use crate::modes::{Mode, ModeConfig};
+use crate::services::mcp::McpHub;
+use crate::shared::modes::{Mode, ModeConfig};
 use crate::services::diff::DiffStrategy;
 
 #[allow(clippy::too_many_arguments)]
