@@ -1,4 +1,4 @@
-use crate::modes::{get_mode_by_slug, Mode, ModeConfig};
+use crate::shared::modes::{get_mode_by_slug, Mode, ModeConfig};
 
 pub fn get_system_info_section(
     cwd: &str,
