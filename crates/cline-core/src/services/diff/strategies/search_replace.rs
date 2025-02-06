@@ -1,4 +1,5 @@
-use crate::services::diff::types::{DiffResult, DiffResultDetails, DiffStrategy, ToolArgs};
+use crate::services::diff::types::{DiffResult, DiffResultDetails, DiffStrategy};
+use crate::prompts::tools::types::ToolArgs;
 use async_trait::async_trait;
 use strsim::normalized_levenshtein;
 
