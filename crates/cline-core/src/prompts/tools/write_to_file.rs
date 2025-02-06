@@ -1,0 +1,96 @@
+use crate::prompts::tools::types::ToolArgs;
+
+pub fn get_write_to_file_description(args: &ToolArgs) -> String {
+    format!(
+        r##"## write_to_file
+Description: Request to write full content to a file at the specified path. If the file exists, it will be overwritten with the provided content. If the file doesn't exist, it will be created. This tool will automatically create any directories needed to write the file.
+Parameters:
+- path: (required) The path of the file to write to (relative to the current working directory {})
+- content: (required) The content to write to the file. ALWAYS provide the COMPLETE intended content of the file, without any truncation or omissions. You MUST include ALL parts of the file, even if they haven't been modified. Do NOT include the line numbers in the content though, just the actual content of the file.
+- line_count: (required) The number of lines in the file. Make sure to compute this based on the actual content of the file, not the number of lines in the content you're providing.
+Usage:
+<write_to_file>
+<path>File path here</path>
+<content>
+Your file content here
+</content>
+<line_count>total number of lines in the file, including empty lines</line_count>
+</write_to_file>
+
+Example: Requesting to write to frontend-config.json
+<write_to_file>
+<path>frontend-config.json</path>
+<content>
+{{
+  "apiEndpoint": "https://api.example.com",
+  "theme": {{
+    "primaryColor": "#007bff",
+    "secondaryColor": "#6c757d",
+    "fontFamily": "Arial, sans-serif"
+  }},
+  "features": {{
+    "darkMode": true,
+    "notifications": true,
+    "analytics": false
+  }},
+  "version": "1.0.0"
+}}
+</content>
+<line_count>14</line_count>
+</write_to_file>"##,
+        args.cwd
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_write_to_file_description() {
+        let args = ToolArgs {
+            cwd: "/Users/jason/Desktop".to_string(),
+            ..Default::default()
+        };
+        let description = get_write_to_file_description(&args);
+
+        let expected_description = r##"## write_to_file
+Description: Request to write full content to a file at the specified path. If the file exists, it will be overwritten with the provided content. If the file doesn't exist, it will be created. This tool will automatically create any directories needed to write the file.
+Parameters:
+- path: (required) The path of the file to write to (relative to the current working directory /Users/jason/Desktop)
+- content: (required) The content to write to the file. ALWAYS provide the COMPLETE intended content of the file, without any truncation or omissions. You MUST include ALL parts of the file, even if they haven't been modified. Do NOT include the line numbers in the content though, just the actual content of the file.
+- line_count: (required) The number of lines in the file. Make sure to compute this based on the actual content of the file, not the number of lines in the content you're providing.
+Usage:
+<write_to_file>
+<path>File path here</path>
+<content>
+Your file content here
+</content>
+<line_count>total number of lines in the file, including empty lines</line_count>
+</write_to_file>
+
+Example: Requesting to write to frontend-config.json
+<write_to_file>
+<path>frontend-config.json</path>
+<content>
+{
+  "apiEndpoint": "https://api.example.com",
+  "theme": {
+    "primaryColor": "#007bff",
+    "secondaryColor": "#6c757d",
+    "fontFamily": "Arial, sans-serif"
+  },
+  "features": {
+    "darkMode": true,
+    "notifications": true,
+    "analytics": false
+  },
+  "version": "1.0.0"
+}}
+</content>
+<line_count>14</line_count>
+</write_to_file>"##;
+
+        assert_eq!(description, expected_description);
+    }
+}
