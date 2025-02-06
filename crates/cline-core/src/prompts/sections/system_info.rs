@@ -1,4 +1,4 @@
-use crate::modes::{DEFAULT_MODE_SLUG, get_mode_by_slug, Mode, ModeConfig};
+use crate::modes::{get_mode_by_slug, Mode, ModeConfig, DEFAULT_MODE_SLUG};
 use std::path::Path;
 
 pub fn get_system_info_section(

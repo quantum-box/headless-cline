@@ -186,7 +186,11 @@ impl McpHub {
         })
     }
 
-    pub async fn read_resource(&self, server_name: &str, _uri: &str) -> Result<McpResourceResponse> {
+    pub async fn read_resource(
+        &self,
+        server_name: &str,
+        _uri: &str,
+    ) -> Result<McpResourceResponse> {
         let connections = self.connections.lock().unwrap();
         let connection = connections
             .iter()

@@ -103,11 +103,10 @@ pub async fn apply_git_fallback(hunk: &Hunk, content: &[String]) -> EditResult {
     }
 
     // Configure git
-    for cmd in &[vec!["config", "user.name", "Temp"], vec![
-        "config",
-        "user.email",
-        "temp@example.com",
-    ]] {
+    for cmd in &[
+        vec!["config", "user.name", "Temp"],
+        vec!["config", "user.email", "temp@example.com"],
+    ] {
         if let Err(_) = Command::new("git")
             .args(cmd)
             .current_dir(&temp_dir)
@@ -204,11 +203,7 @@ pub async fn apply_git_fallback(hunk: &Hunk, content: &[String]) -> EditResult {
                                             .await
                                         {
                                             if let Ok(_) = Command::new("git")
-                                                .args([
-                                                    "cherry-pick",
-                                                    "--minimal",
-                                                    &replace_commit,
-                                                ])
+                                                .args(["cherry-pick", "--minimal", &replace_commit])
                                                 .current_dir(&temp_dir)
                                                 .output()
                                                 .await

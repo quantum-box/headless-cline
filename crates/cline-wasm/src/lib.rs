@@ -1,9 +1,9 @@
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 
+use futures_util::StreamExt;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
-use futures_util::StreamExt;
 
 const API_KEY: &str = "";
 
