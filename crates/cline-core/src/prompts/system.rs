@@ -1,6 +1,6 @@
 use crate::mcp::McpHub;
 use crate::modes::{
-    default_mode_slug, get_mode_by_slug, get_role_definition, modes, CustomModePrompts, Mode,
+    DEFAULT_MODE_SLUG, get_mode_by_slug, get_role_definition, MODES, CustomModePrompts, Mode,
     ModeConfig, PromptComponent,
 };
 use crate::prompts::tools::get_tool_descriptions_for_mode;
@@ -48,8 +48,8 @@ async fn generate_prompt(
     );
 
     let mode_config = get_mode_by_slug(mode.clone(), custom_mode_configs)
-        .or_else(|| modes.iter().find(|m| m.slug == mode))
-        .unwrap_or(&modes[0]);
+        .or_else(|| MODES.iter().find(|m| m.slug == mode))
+        .unwrap_or(&MODES[0]);
 
     let role_definition = prompt_component
         .and_then(|pc| pc.role_definition.as_ref())
@@ -132,8 +132,8 @@ pub async fn system_prompt(
 
     let mode_str = mode.as_ref().map(String::as_str).unwrap_or("");
     let current_mode = get_mode_by_slug(mode_str.to_string(), custom_modes)
-        .or_else(|| modes.iter().find(|m| m.slug == mode_str))
-        .unwrap_or(&modes[0]);
+        .or_else(|| MODES.iter().find(|m| m.slug == mode_str))
+        .unwrap_or(&MODES[0]);
 
     let prompt_component = get_prompt_component(&custom_mode_prompts, &current_mode.slug);
 
