@@ -56,7 +56,7 @@ impl McpHub {
 
     fn watch_mcp_settings_file(&self) -> Result<()> {
         let settings_path = self.settings_path.clone();
-        let connections = Arc::clone(&self.connections);
+        let _connections = Arc::clone(&self.connections);
 
         let (tx, mut rx) = mpsc::channel(32);
 

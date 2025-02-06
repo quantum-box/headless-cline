@@ -152,7 +152,7 @@ impl NewUnifiedDiffStrategy {
                 }
                 _ => {
                     if current_hunk.is_none() {
-                        let mut changes = context_before.clone();
+                        let changes = context_before.clone();
                         current_hunk = Some(Hunk { changes });
                         context_after = Vec::new();
                     } else if !context_after.is_empty() {

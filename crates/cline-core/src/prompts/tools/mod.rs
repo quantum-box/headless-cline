@@ -37,14 +37,14 @@ use crate::modes::{Mode, ModeConfig};
 use crate::services::diff::DiffStrategy;
 
 pub fn get_tool_descriptions_for_mode(
-    mode: Mode,
+    _mode: Mode,
     cwd: String,
     supports_computer_use: bool,
     diff_strategy: Option<&Box<dyn DiffStrategy>>,
     browser_viewport_size: Option<String>,
     mcp_hub: Option<&Box<McpHub>>,
-    custom_modes: Option<&[ModeConfig]>,
-    experiments: Option<&std::collections::HashMap<String, bool>>,
+    _custom_modes: Option<&[ModeConfig]>,
+    _experiments: Option<&std::collections::HashMap<String, bool>>,
 ) -> String {
     let args = ToolArgs {
         cwd,
