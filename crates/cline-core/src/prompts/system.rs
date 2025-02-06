@@ -5,11 +5,11 @@ use crate::prompts::sections::{
 };
 use crate::prompts::tools::get_tool_descriptions_for_mode;
 use crate::services::diff::DiffStrategy;
+use crate::services::diff::DiffStrategy;
 use crate::services::mcp::McpHub;
 use crate::shared::modes::{
     get_mode_by_slug, CustomModePrompts, Mode, ModeConfig, PromptComponent, MODES,
 };
-use crate::services::diff::DiffStrategy;
 use std::collections::HashMap;
 
 use std::path::Path;
