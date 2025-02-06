@@ -1,2 +1,2 @@
 gen-wasm-for-extension:
-	wasm-pack build --target bundler --out-dir ./extension/cline --release
+	wasm-pack build crates/cline-wasm --target bundler --out-dir ./extension/cline --release

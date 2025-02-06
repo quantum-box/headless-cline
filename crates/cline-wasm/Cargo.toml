@@ -1,0 +1,20 @@
+[package]
+name = "headless-wasm"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+reqwest = { version = "0.12.12", features = ["json", "stream"] }
+wasm-bindgen = "0.2.100"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1"
+tracing = "0.1.41"
+tracing-wasm = "0.2.1"
+console_error_panic_hook = "0.1.7"
+futures-util = "0.3"
