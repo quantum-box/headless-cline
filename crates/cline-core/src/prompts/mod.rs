@@ -3,5 +3,4 @@ pub mod system;
 pub mod tools;
 
 pub use sections::*;
-pub use system::*;
-pub use tools::*;
+pub use system::generate_prompt;

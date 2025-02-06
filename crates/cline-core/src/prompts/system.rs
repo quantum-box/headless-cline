@@ -15,7 +15,7 @@ use std::path::Path;
 
 use super::PreferredLanguage;
 
-async fn generate_prompt(
+pub async fn generate_prompt(
     context: &Path,
     cwd: &str,
     supports_computer_use: bool,

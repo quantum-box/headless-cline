@@ -96,7 +96,7 @@ impl AnthropicClient {
     pub async fn attempt_api_request(
         &self,
         user_content: String,
-        include_file_details: bool,
+        _include_file_details: bool,
         mut on_chunk: MessageCallback,
     ) -> Result<String> {
         let request_body = ClaudeRequest {
