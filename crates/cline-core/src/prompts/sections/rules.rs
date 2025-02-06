@@ -1,4 +1,4 @@
-use crate::diff::DiffStrategy;
+use crate::services::diff::DiffStrategy;
 
 pub fn get_rules_section(
     cwd: &str,

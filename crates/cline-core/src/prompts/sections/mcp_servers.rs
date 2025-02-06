@@ -1,4 +1,4 @@
-use crate::diff::DiffStrategy;
+use crate::services::diff::DiffStrategy;
 use crate::services::mcp::{McpHub, McpServerStatus};
 use serde_json::Value;
 

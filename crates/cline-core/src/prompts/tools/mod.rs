@@ -32,9 +32,9 @@ pub use types::ToolArgs;
 pub use use_mcp_tool::get_use_mcp_tool_description;
 pub use write_to_file::get_write_to_file_description;
 
-use crate::diff::DiffStrategy;
 use crate::mcp::McpHub;
 use crate::modes::{Mode, ModeConfig};
+use crate::services::diff::DiffStrategy;
 
 pub fn get_tool_descriptions_for_mode(
     mode: Mode,

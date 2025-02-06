@@ -20,7 +20,7 @@ pub struct MatchedRange {
 pub type DiffResult = Result<String, String>;
 
 #[async_trait]
-pub trait DiffStrategy {
+pub trait DiffStrategy: Debug {
     fn get_tool_description(&self, args: &ToolArgs) -> String;
     async fn apply_diff(
         &self,

@@ -1,12 +1,20 @@
 use crate::services::diff::types::{DiffResult, DiffStrategy, ToolArgs};
 use async_trait::async_trait;
 use diffy::apply;
+use std::fmt;
 
+#[derive(Default)]
 pub struct UnifiedDiffStrategy;
 
 impl UnifiedDiffStrategy {
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl fmt::Debug for UnifiedDiffStrategy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("UnifiedDiffStrategy").finish()
     }
 }
 
@@ -54,9 +62,12 @@ Format Requirements:
         _start_line: Option<usize>,
         _end_line: Option<usize>,
     ) -> DiffResult {
-        match apply(original_content, diff_content) {
-            Ok(result) => Ok(result),
-            Err(e) => Err(format!("Failed to apply unified diff: {}", e)),
+        match diffy::Patch::from_str(diff_content) {
+            Ok(patch) => match diffy::apply(original_content, &patch) {
+                Ok(result) => Ok(result),
+                Err(e) => Err(format!("Failed to apply unified diff: {}", e)),
+            },
+            Err(e) => Err(format!("Failed to parse unified diff: {}", e)),
         }
     }
 }
