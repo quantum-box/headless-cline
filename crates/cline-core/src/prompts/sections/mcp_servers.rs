@@ -3,8 +3,8 @@ use crate::services::mcp::{McpHub, McpServerStatus};
 use serde_json::Value;
 
 pub async fn get_mcp_servers_section(
-    mcp_hub: Option<&Box<McpHub>>,
-    diff_strategy: Option<&Box<dyn DiffStrategy>>,
+    mcp_hub: Option<&McpHub>,
+    diff_strategy: Option<&dyn DiffStrategy>,
     enable_mcp_server_creation: Option<bool>,
 ) -> String {
     if mcp_hub.is_none() {

@@ -6,9 +6,9 @@ use std::fmt;
 pub struct ToolArgs<'a> {
     pub cwd: String,
     pub supports_computer_use: bool,
-    pub diff_strategy: Option<&'a Box<dyn DiffStrategy>>,
+    pub diff_strategy: Option<&'a dyn DiffStrategy>,
     pub browser_viewport_size: Option<String>,
-    pub mcp_hub: Option<&'a Box<McpHub>>,
+    pub mcp_hub: Option<&'a McpHub>,
     pub tool_options: Option<serde_json::Value>,
 }
 

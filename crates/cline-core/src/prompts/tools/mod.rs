@@ -40,9 +40,9 @@ pub fn get_tool_descriptions_for_mode(
     _mode: Mode,
     cwd: String,
     supports_computer_use: bool,
-    diff_strategy: Option<&Box<dyn DiffStrategy>>,
+    diff_strategy: Option<&dyn DiffStrategy>,
     browser_viewport_size: Option<String>,
-    mcp_hub: Option<&Box<McpHub>>,
+    mcp_hub: Option<&McpHub>,
     _custom_modes: Option<&[ModeConfig]>,
     _experiments: Option<&std::collections::HashMap<String, bool>>,
 ) -> String {
