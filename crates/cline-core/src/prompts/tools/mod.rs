@@ -38,6 +38,7 @@ use crate::services::diff::DiffStrategy;
 use crate::prompts::tools::types::ToolArgs;
 
 #[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
 pub fn get_tool_descriptions_for_mode(
     _mode: Mode,
     cwd: String,
