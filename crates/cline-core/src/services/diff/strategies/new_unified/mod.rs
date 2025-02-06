@@ -14,6 +14,7 @@ pub struct NewUnifiedDiffStrategy {
     confidence_threshold: f64,
 }
 
+#[allow(dead_code)]
 impl NewUnifiedDiffStrategy {
     pub fn new(confidence_threshold: Option<f64>) -> Self {
         Self {

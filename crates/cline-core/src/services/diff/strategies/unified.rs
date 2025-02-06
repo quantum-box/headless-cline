@@ -7,6 +7,7 @@ use std::fmt;
 #[derive(Default)]
 pub struct UnifiedDiffStrategy;
 
+#[allow(dead_code)]
 impl UnifiedDiffStrategy {
     pub fn new() -> Self {
         Self

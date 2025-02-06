@@ -7,6 +7,7 @@ pub use search_replace::SearchReplaceDiffStrategy;
 
 use crate::services::diff::types::*;
 
+#[allow(dead_code)]
 pub fn get_diff_strategy(
     _model: &str,
     fuzzy_match_threshold: Option<f64>,
