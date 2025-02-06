@@ -110,7 +110,7 @@ pub fn find_exact_match(
 ) -> SearchResult {
     let search_lines: Vec<_> = search_str.lines().collect();
     let windows =
-        create_overlapping_windows(&content[start_index..].to_vec(), search_lines.len(), None);
+        create_overlapping_windows(&content[start_index..], search_lines.len(), None);
     let mut best_result = SearchResult {
         index: -1,
         confidence: 0.0,

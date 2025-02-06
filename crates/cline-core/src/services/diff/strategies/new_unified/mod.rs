@@ -157,7 +157,7 @@ impl NewUnifiedDiffStrategy {
                         context_after = Vec::new();
                     } else if !context_after.is_empty() {
                         if let Some(ref mut hunk) = current_hunk {
-                            hunk.changes.extend(context_after.drain(..));
+                            hunk.changes.append(&mut context_after);
                         }
                     }
                     if let Some(ref mut hunk) = current_hunk {

@@ -204,7 +204,7 @@ pub async fn apply_git_fallback(hunk: &Hunk, content: &[String]) -> EditResult {
                                             .await
                                         {
                                             if let Ok(_) = Command::new("git")
-                                                .args(&[
+                                                .args([
                                                     "cherry-pick",
                                                     "--minimal",
                                                     &replace_commit,
