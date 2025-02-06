@@ -14,6 +14,7 @@ use std::path::Path;
 use crate::prompts::sections::custom_instructions::PreferredLanguage;
 
 #[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
 pub async fn generate_prompt(
     context: &Path,
     cwd: &str,
@@ -100,6 +101,7 @@ pub async fn generate_prompt(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
 pub async fn system_prompt(
     context: &Path,
     cwd: &str,

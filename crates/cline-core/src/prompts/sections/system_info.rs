@@ -1,5 +1,6 @@
 use crate::shared::modes::{get_mode_by_slug, Mode, ModeConfig};
 
+#[allow(dead_code)]
 pub fn get_system_info_section(
     cwd: &str,
     mode: Mode,
