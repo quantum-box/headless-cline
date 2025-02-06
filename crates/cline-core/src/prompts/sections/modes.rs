@@ -1,4 +1,3 @@
-use crate::modes::{Mode, ModeConfig, default_mode_slug, get_mode_by_slug};
 use std::path::Path;
 
 pub async fn get_modes_section(context: &Path) -> String {

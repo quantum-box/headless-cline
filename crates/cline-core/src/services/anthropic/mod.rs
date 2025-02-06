@@ -3,7 +3,6 @@ use futures_util::StreamExt;
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::env;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
@@ -30,6 +29,7 @@ struct Content {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct StreamResponse {
     #[serde(rename = "type")]
     response_type: String,
@@ -46,7 +46,7 @@ struct Delta {
 
 pub type MessageCallback = Box<dyn FnMut(String) + Send + 'static>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AnthropicClient {
     client: Client,
     api_key: String,
@@ -96,8 +96,8 @@ impl AnthropicClient {
     pub async fn attempt_api_request(
         &self,
         user_content: String,
-        include_file_details: bool,
-        on_chunk: MessageCallback,
+        _include_file_details: bool,
+        mut on_chunk: MessageCallback,
     ) -> Result<String> {
         let request_body = ClaudeRequest {
             model: "claude-3-sonnet-20240229".to_string(),
@@ -134,8 +134,7 @@ impl AnthropicClient {
             let text = String::from_utf8_lossy(&chunk);
 
             for line in text.lines() {
-                if line.starts_with("data: ") {
-                    let data = &line["data: ".len()..];
+                if let Some(data) = line.strip_prefix("data: ") {
                     if data == "[DONE]" {
                         continue;
                     }

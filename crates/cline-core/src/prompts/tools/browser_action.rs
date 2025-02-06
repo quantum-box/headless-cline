@@ -1,5 +1,6 @@
 use crate::prompts::tools::types::ToolArgs;
 
+#[allow(dead_code)]
 pub fn get_browser_action_description(args: &ToolArgs) -> Option<String> {
     if !args.supports_computer_use {
         return None;

@@ -1,5 +1,6 @@
 use crate::prompts::tools::types::ToolArgs;
 
+#[allow(dead_code)]
 pub fn get_execute_command_description(args: &ToolArgs) -> Option<String> {
     Some(format!(
         r##"## execute_command

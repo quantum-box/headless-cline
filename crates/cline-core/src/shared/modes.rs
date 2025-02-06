@@ -20,9 +20,9 @@ pub struct PromptComponent {
 
 pub type CustomModePrompts = std::collections::HashMap<String, PromptComponent>;
 
-pub const default_mode_slug: &str = "code";
+pub const DEFAULT_MODE_SLUG: &str = "code";
 
-pub static modes: Lazy<Vec<ModeConfig>> = Lazy::new(|| {
+pub static MODES: Lazy<Vec<ModeConfig>> = Lazy::new(|| {
     vec![
         ModeConfig {
             slug: "code".to_string(),
@@ -52,7 +52,7 @@ pub fn get_mode_by_slug(mode: Mode, custom_modes: Option<&[ModeConfig]>) -> Opti
             return Some(mode_config);
         }
     }
-    modes.iter().find(|m| m.slug == mode)
+    MODES.iter().find(|m| m.slug == mode)
 }
 
 pub fn get_role_definition(mode: &str, custom_modes: Option<&[ModeConfig]>) -> String {

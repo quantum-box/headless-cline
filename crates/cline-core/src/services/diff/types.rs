@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt::Debug};
+use std::fmt::Debug;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DiffResultDetails {
@@ -17,9 +17,19 @@ pub struct MatchedRange {
     pub end: usize,
 }
 
-pub type DiffResult = Result<String, String>;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DiffResult {
+    Success {
+        content: String,
+    },
+    Failure {
+        error: String,
+        details: Option<DiffResultDetails>,
+    },
+}
 
 #[async_trait]
+#[allow(dead_code)]
 pub trait DiffStrategy: Debug {
     fn get_tool_description(&self, args: &ToolArgs) -> String;
     async fn apply_diff(
@@ -31,7 +41,4 @@ pub trait DiffStrategy: Debug {
     ) -> DiffResult;
 }
 
-pub struct ToolArgs {
-    pub cwd: String,
-    pub tool_options: Option<std::collections::HashMap<String, String>>,
-}
+pub use crate::prompts::tools::types::ToolArgs;

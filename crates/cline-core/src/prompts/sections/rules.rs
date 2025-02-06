@@ -1,9 +1,10 @@
 use crate::services::diff::DiffStrategy;
 
+#[allow(dead_code)]
 pub fn get_rules_section(
     cwd: &str,
     supports_computer_use: bool,
-    diff_strategy: Option<&Box<dyn DiffStrategy>>,
+    diff_strategy: Option<&dyn DiffStrategy>,
     experiments: Option<&std::collections::HashMap<String, bool>>,
 ) -> String {
     let mut editing_instructions = vec![];

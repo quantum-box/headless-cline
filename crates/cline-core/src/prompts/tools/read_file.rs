@@ -1,5 +1,6 @@
 use crate::prompts::tools::types::ToolArgs;
 
+#[allow(dead_code)]
 pub fn get_read_file_description(args: &ToolArgs) -> String {
     format!(
         r##"## read_file

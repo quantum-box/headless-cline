@@ -1,11 +1,12 @@
-use crate::mcp::McpHub;
 use crate::services::diff::DiffStrategy;
+use crate::services::mcp::McpHub;
 
+#[allow(dead_code)]
 pub fn get_capabilities_section(
     cwd: &str,
     supports_computer_use: bool,
-    mcp_hub: Option<&Box<McpHub>>,
-    diff_strategy: Option<&Box<dyn DiffStrategy>>,
+    mcp_hub: Option<&McpHub>,
+    diff_strategy: Option<&dyn DiffStrategy>,
 ) -> String {
     let mut sections = vec![
         format!(

@@ -18,6 +18,7 @@ pub fn prepare_search_string(changes: &[Change]) -> String {
         .iter()
         .filter(|c| matches!(c.change_type, ChangeType::Context | ChangeType::Remove))
         .filter_map(|c| c.original_line.as_ref())
+        .map(|s| s.as_str())
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -108,8 +109,7 @@ pub fn find_exact_match(
     confidence_threshold: f64,
 ) -> SearchResult {
     let search_lines: Vec<_> = search_str.lines().collect();
-    let windows =
-        create_overlapping_windows(&content[start_index..].to_vec(), search_lines.len(), None);
+    let windows = create_overlapping_windows(&content[start_index..], search_lines.len(), None);
     let mut best_result = SearchResult {
         index: -1,
         confidence: 0.0,

@@ -1,20 +1,20 @@
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use anyhow::{Context, Result};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde_json::json;
 use tokio::sync::mpsc;
-use tokio::time::sleep;
 
 use super::types::*;
 
 #[derive(Debug)]
 pub struct McpConnection {
+    #[allow(dead_code)]
     pub server: McpServer,
+    #[allow(dead_code)]
     pub client: reqwest::Client,
 }
 
@@ -24,9 +24,11 @@ pub struct McpHub {
     settings_path: PathBuf,
     workspace_path: PathBuf,
     is_connecting: bool,
+    #[allow(dead_code)]
     file_watchers: HashMap<String, RecommendedWatcher>,
 }
 
+#[allow(dead_code)]
 impl McpHub {
     pub fn new(workspace_path: PathBuf, settings_path: PathBuf) -> Result<Self> {
         let hub = Self {
@@ -54,9 +56,10 @@ impl McpHub {
         Ok(hub)
     }
 
+    #[allow(dead_code)]
     fn watch_mcp_settings_file(&self) -> Result<()> {
         let settings_path = self.settings_path.clone();
-        let connections = Arc::clone(&self.connections);
+        let _connections = Arc::clone(&self.connections);
 
         let (tx, mut rx) = mpsc::channel(32);
 
@@ -86,6 +89,7 @@ impl McpHub {
         Ok(())
     }
 
+    #[allow(dead_code)]
     async fn reload_settings(&mut self) -> Result<()> {
         let content = fs::read_to_string(&self.settings_path)?;
         let settings: McpSettings = serde_json::from_str(&content)?;
@@ -93,6 +97,7 @@ impl McpHub {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn initialize_mcp_servers(&self) -> Result<()> {
         let content = fs::read_to_string(&self.settings_path)?;
         let settings: McpSettings = serde_json::from_str(&content)?;
@@ -106,6 +111,7 @@ impl McpHub {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn create_connection(&self, name: &str, config: &StdioConfig) -> Result<McpConnection> {
         let client = reqwest::Client::new();
 
@@ -123,6 +129,7 @@ impl McpHub {
         Ok(McpConnection { server, client })
     }
 
+    #[allow(dead_code)]
     async fn update_server_connections(
         &mut self,
         new_servers: HashMap<String, StdioConfig>,
@@ -130,7 +137,7 @@ impl McpHub {
         self.is_connecting = true;
 
         let mut connections = self.connections.lock().unwrap();
-        let current_names: Vec<String> =
+        let _current_names: Vec<String> =
             connections.iter().map(|c| c.server.name.clone()).collect();
 
         // 削除されたサーバーを削除
@@ -154,6 +161,7 @@ impl McpHub {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn get_servers(&self) -> Vec<McpServer> {
         let connections = self.connections.lock().unwrap();
         connections
@@ -163,10 +171,11 @@ impl McpHub {
             .collect()
     }
 
+    #[allow(dead_code)]
     pub async fn call_tool(
         &self,
         server_name: &str,
-        tool_name: &str,
+        _tool_name: &str,
         tool_arguments: Option<serde_json::Value>,
     ) -> Result<McpToolCallResponse> {
         let connections = self.connections.lock().unwrap();
@@ -186,7 +195,12 @@ impl McpHub {
         })
     }
 
-    pub async fn read_resource(&self, server_name: &str, uri: &str) -> Result<McpResourceResponse> {
+    #[allow(dead_code)]
+    pub async fn read_resource(
+        &self,
+        server_name: &str,
+        _uri: &str,
+    ) -> Result<McpResourceResponse> {
         let connections = self.connections.lock().unwrap();
         let connection = connections
             .iter()
@@ -204,6 +218,7 @@ impl McpHub {
         })
     }
 
+    #[allow(dead_code)]
     pub async fn toggle_tool_always_allow(
         &self,
         server_name: &str,
@@ -233,6 +248,7 @@ impl McpHub {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn toggle_server_disabled(&self, server_name: &str, disabled: bool) -> Result<()> {
         let content = fs::read_to_string(&self.settings_path)?;
         let mut settings: McpSettings = serde_json::from_str(&content)?;
@@ -257,6 +273,7 @@ impl McpHub {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn update_server_timeout(&self, server_name: &str, timeout: u32) -> Result<()> {
         let content = fs::read_to_string(&self.settings_path)?;
         let mut settings: McpSettings = serde_json::from_str(&content)?;
@@ -273,6 +290,7 @@ impl McpHub {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn get_mcp_servers_path(&self) -> String {
         self.workspace_path
             .join("mcp-servers")
@@ -280,6 +298,7 @@ impl McpHub {
             .to_string()
     }
 
+    #[allow(dead_code)]
     pub async fn get_mcp_settings_file_path(&self) -> String {
         self.settings_path.to_string_lossy().to_string()
     }

@@ -1,5 +1,6 @@
 use crate::prompts::tools::types::ToolArgs;
 
+#[allow(dead_code)]
 pub fn get_list_code_definition_names_description(args: &ToolArgs) -> String {
     format!(
         r#"## list_code_definition_names

@@ -2,16 +2,19 @@ mod edit_strategies;
 mod search_strategies;
 mod types;
 
-use crate::diff::types::{DiffResult, DiffStrategy, ToolArgs};
+use crate::prompts::tools::types::ToolArgs;
+use crate::services::diff::types::{DiffResult, DiffStrategy};
 use async_trait::async_trait;
 use edit_strategies::apply_edit;
 use search_strategies::{find_best_match, prepare_search_string};
 use types::{Change, ChangeType, Diff, Hunk};
 
+#[derive(Debug)]
 pub struct NewUnifiedDiffStrategy {
     confidence_threshold: f64,
 }
 
+#[allow(dead_code)]
 impl NewUnifiedDiffStrategy {
     pub fn new(confidence_threshold: Option<f64>) -> Self {
         Self {
@@ -22,7 +25,7 @@ impl NewUnifiedDiffStrategy {
     fn parse_unified_diff(&self, diff: &str) -> Diff {
         const MAX_CONTEXT_LINES: usize = 6;
         let mut hunks = Vec::new();
-        let mut current_hunk = None;
+        let mut current_hunk: Option<Hunk> = None;
         let lines: Vec<&str> = diff.lines().collect();
 
         let mut i = 0;
@@ -123,7 +126,7 @@ impl NewUnifiedDiffStrategy {
 
     fn split_hunk(&self, hunk: &Hunk) -> Vec<Hunk> {
         let mut result = Vec::new();
-        let mut current_hunk = None;
+        let mut current_hunk: Option<Hunk> = None;
         let mut context_before = Vec::new();
         let mut context_after = Vec::new();
         const MAX_CONTEXT_LINES: usize = 3;
@@ -151,12 +154,12 @@ impl NewUnifiedDiffStrategy {
                 }
                 _ => {
                     if current_hunk.is_none() {
-                        let mut changes = context_before.clone();
+                        let changes = context_before.clone();
                         current_hunk = Some(Hunk { changes });
                         context_after = Vec::new();
                     } else if !context_after.is_empty() {
                         if let Some(ref mut hunk) = current_hunk {
-                            hunk.changes.extend(context_after.drain(..));
+                            hunk.changes.append(&mut context_after);
                         }
                     }
                     if let Some(ref mut hunk) = current_hunk {
@@ -179,7 +182,7 @@ impl NewUnifiedDiffStrategy {
 
 #[async_trait]
 impl DiffStrategy for NewUnifiedDiffStrategy {
-    fn get_tool_description(&self, args: ToolArgs) -> String {
+    fn get_tool_description(&self, args: &ToolArgs) -> String {
         format!(
             r#"# apply_diff Tool - Generate Precise Code Changes
 

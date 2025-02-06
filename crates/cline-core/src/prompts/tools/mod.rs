@@ -1,19 +1,19 @@
-mod access_mcp_resource;
-mod ask_followup_question;
-mod attempt_completion;
-mod browser_action;
-mod execute_command;
-mod insert_content;
-mod list_code_definition_names;
-mod list_files;
-mod new_task;
-mod read_file;
-mod search_and_replace;
-mod search_files;
-mod switch_mode;
-mod types;
-mod use_mcp_tool;
-mod write_to_file;
+pub mod access_mcp_resource;
+pub mod ask_followup_question;
+pub mod attempt_completion;
+pub mod browser_action;
+pub mod execute_command;
+pub mod insert_content;
+pub mod list_code_definition_names;
+pub mod list_files;
+pub mod new_task;
+pub mod read_file;
+pub mod search_and_replace;
+pub mod search_files;
+pub mod switch_mode;
+pub mod types;
+pub mod use_mcp_tool;
+pub mod write_to_file;
 
 pub use access_mcp_resource::get_access_mcp_resource_description;
 pub use ask_followup_question::get_ask_followup_question_description;
@@ -28,23 +28,26 @@ pub use read_file::get_read_file_description;
 pub use search_and_replace::get_search_and_replace_description;
 pub use search_files::get_search_files_description;
 pub use switch_mode::get_switch_mode_description;
-pub use types::ToolArgs;
+
 pub use use_mcp_tool::get_use_mcp_tool_description;
 pub use write_to_file::get_write_to_file_description;
 
-use crate::mcp::McpHub;
-use crate::modes::{Mode, ModeConfig};
+use crate::prompts::tools::types::ToolArgs;
 use crate::services::diff::DiffStrategy;
+use crate::services::mcp::McpHub;
+use crate::shared::modes::{Mode, ModeConfig};
 
+#[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
 pub fn get_tool_descriptions_for_mode(
-    mode: Mode,
+    _mode: Mode,
     cwd: String,
     supports_computer_use: bool,
-    diff_strategy: Option<&Box<dyn DiffStrategy>>,
+    diff_strategy: Option<&dyn DiffStrategy>,
     browser_viewport_size: Option<String>,
-    mcp_hub: Option<&Box<McpHub>>,
-    custom_modes: Option<&[ModeConfig]>,
-    experiments: Option<&std::collections::HashMap<String, bool>>,
+    mcp_hub: Option<&McpHub>,
+    _custom_modes: Option<&[ModeConfig]>,
+    _experiments: Option<&std::collections::HashMap<String, bool>>,
 ) -> String {
     let args = ToolArgs {
         cwd,

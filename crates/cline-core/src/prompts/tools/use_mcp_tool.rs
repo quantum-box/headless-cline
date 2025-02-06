@@ -1,9 +1,8 @@
 use crate::prompts::tools::types::ToolArgs;
 
+#[allow(dead_code)]
 pub fn get_use_mcp_tool_description(args: &ToolArgs) -> Option<String> {
-    if args.mcp_hub.is_none() {
-        return None;
-    }
+    args.mcp_hub?;
 
     Some(r##"## use_mcp_tool
 Description: Request to use a tool provided by a connected MCP server. Each MCP server can provide multiple tools with different capabilities. Tools have defined input schemas that specify required and optional parameters.

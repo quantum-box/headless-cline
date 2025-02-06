@@ -1,10 +1,12 @@
 use std::path::Path;
 use tokio::fs;
 
+#[allow(dead_code)]
 pub struct PreferredLanguage {
     pub preferred_language: Option<String>,
 }
 
+#[allow(dead_code)]
 pub async fn add_custom_instructions(
     mode_custom_instructions: &str,
     global_custom_instructions: &str,
@@ -84,6 +86,7 @@ pub async fn add_custom_instructions(
     })
 }
 
+#[allow(dead_code)]
 async fn load_rule_files(cwd: &str) -> Result<String, Box<dyn std::error::Error>> {
     let rule_files = vec![".clinerules", ".cursorrules", ".windsurfrules"];
     let mut combined_rules = String::new();

@@ -1,5 +1,6 @@
 use crate::prompts::tools::types::ToolArgs;
 
+#[allow(dead_code)]
 pub fn get_list_files_description(args: &ToolArgs) -> String {
     format!(
         r##"## list_files

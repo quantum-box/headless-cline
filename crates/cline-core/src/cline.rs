@@ -1,5 +1,4 @@
 use anyhow::Result;
-use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -7,9 +6,7 @@ use uuid::Uuid;
 
 use crate::services::anthropic::{AnthropicClient, Message};
 
-const API_KEY: &str = "";
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Cline {
     task_id: String,
     anthropic_client: AnthropicClient,
@@ -27,7 +24,7 @@ pub struct Cline {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
-enum ClineMessage {
+pub enum ClineMessage {
     Ask {
         ts: i64,
         text: Option<String>,
@@ -51,26 +48,33 @@ struct ClaudeRequest {
 
 #[derive(Debug, Deserialize)]
 struct ClaudeResponse {
+    #[allow(dead_code)]
     content: Vec<Content>,
 }
 
 #[derive(Debug, Deserialize)]
 struct Content {
+    #[allow(dead_code)]
     text: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct StreamResponse {
     #[serde(rename = "type")]
+    #[allow(dead_code)]
     response_type: String,
+    #[allow(dead_code)]
     index: Option<i32>,
+    #[allow(dead_code)]
     delta: Option<Delta>,
 }
 
 #[derive(Debug, Deserialize)]
 struct Delta {
     #[serde(rename = "type")]
+    #[allow(dead_code)]
     delta_type: String,
+    #[allow(dead_code)]
     text: String,
 }
 
@@ -181,6 +185,7 @@ impl Cline {
         });
 
         let mut last_chunk = String::new();
+        let mut this = self.clone();
         let assistant_message = self
             .anthropic_client
             .attempt_api_request(
@@ -193,7 +198,7 @@ impl Cline {
                             .unwrap()
                             .as_millis() as i64;
                         last_chunk = chunk.clone();
-                        self.add_cline_message(ClineMessage::Say {
+                        this.add_cline_message(ClineMessage::Say {
                             ts: current_time,
                             text: Some(chunk),
                             images: None,
@@ -222,9 +227,7 @@ impl Cline {
         let contains_tool_use = assistant_message.contains("<tool>");
         if !contains_tool_use {
             // ツール使用がない場合は、次のリクエストのためのコンテンツを準備
-            let next_content = format!(
-                "No tools were used in the response. Please either use a tool or attempt completion."
-            );
+            let next_content = "No tools were used in the response. Please either use a tool or attempt completion.".to_string();
             return Box::pin(self.recursively_make_cline_requests(next_content, false)).await;
         }
 
@@ -285,7 +288,7 @@ impl Cline {
 
     pub async fn ask(
         &mut self,
-        ask_type: String,
+        _ask_type: String,
         text: Option<String>,
         partial: Option<bool>,
     ) -> Result<(AskResponse, Option<String>, Option<Vec<String>>)> {
@@ -298,9 +301,9 @@ impl Cline {
         if let Some(is_partial) = partial {
             if is_partial {
                 let last_message = self.cline_messages.last().cloned();
-                let is_updating_previous_partial = last_message.as_ref().map_or(false, |msg| {
-                    matches!(msg, ClineMessage::Ask { partial: true, .. })
-                });
+                let is_updating_previous_partial = last_message
+                    .as_ref()
+                    .is_some_and(|msg| matches!(msg, ClineMessage::Ask { partial: true, .. }));
 
                 if is_updating_previous_partial {
                     // 既存の部分メッセージを更新
@@ -324,9 +327,9 @@ impl Cline {
                 anyhow::bail!("Current ask promise was ignored");
             } else {
                 let last_message = self.cline_messages.last().cloned();
-                let is_updating_previous_partial = last_message.as_ref().map_or(false, |msg| {
-                    matches!(msg, ClineMessage::Ask { partial: true, .. })
-                });
+                let is_updating_previous_partial = last_message
+                    .as_ref()
+                    .is_some_and(|msg| matches!(msg, ClineMessage::Ask { partial: true, .. }));
 
                 // 完了メッセージの処理
                 if is_updating_previous_partial {
@@ -360,7 +363,7 @@ impl Cline {
 
     pub async fn say(
         &mut self,
-        say_type: String,
+        _say_type: String,
         text: Option<String>,
         images: Option<Vec<String>>,
         partial: Option<bool>,
@@ -372,9 +375,9 @@ impl Cline {
 
         if let Some(is_partial) = partial {
             let last_message = self.cline_messages.last().cloned();
-            let is_updating_previous_partial = last_message.as_ref().map_or(false, |msg| {
-                matches!(msg, ClineMessage::Say { partial: true, .. })
-            });
+            let is_updating_previous_partial = last_message
+                .as_ref()
+                .is_some_and(|msg| matches!(msg, ClineMessage::Say { partial: true, .. }));
 
             if is_partial {
                 if is_updating_previous_partial {
