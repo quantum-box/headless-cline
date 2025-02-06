@@ -36,6 +36,7 @@ use crate::mcp::McpHub;
 use crate::modes::{Mode, ModeConfig};
 use crate::services::diff::DiffStrategy;
 
+#[allow(clippy::too_many_arguments)]
 pub fn get_tool_descriptions_for_mode(
     _mode: Mode,
     cwd: String,

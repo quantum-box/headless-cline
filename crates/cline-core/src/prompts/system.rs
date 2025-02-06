@@ -13,6 +13,7 @@ use std::path::Path;
 
 use super::PreferredLanguage;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn generate_prompt(
     context: &Path,
     cwd: &str,
@@ -100,6 +101,7 @@ pub async fn generate_prompt(
     Ok(format!("{}\n\n{}", base_prompt, final_prompt))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn system_prompt(
     context: &Path,
     cwd: &str,
