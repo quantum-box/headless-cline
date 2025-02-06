@@ -278,6 +278,7 @@ pub enum ClineSay {
     NewTask,
 }
 
+#[allow(dead_code)]
 pub const BROWSER_ACTIONS: [&str; 6] = [
     "launch",
     "click",

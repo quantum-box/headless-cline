@@ -12,7 +12,9 @@ use super::types::*;
 
 #[derive(Debug)]
 pub struct McpConnection {
+    #[allow(dead_code)]
     pub server: McpServer,
+    #[allow(dead_code)]
     pub client: reqwest::Client,
 }
 
@@ -22,9 +24,11 @@ pub struct McpHub {
     settings_path: PathBuf,
     workspace_path: PathBuf,
     is_connecting: bool,
+    #[allow(dead_code)]
     file_watchers: HashMap<String, RecommendedWatcher>,
 }
 
+#[allow(dead_code)]
 impl McpHub {
     pub fn new(workspace_path: PathBuf, settings_path: PathBuf) -> Result<Self> {
         let hub = Self {
