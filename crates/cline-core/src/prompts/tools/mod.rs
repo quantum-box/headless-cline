@@ -34,7 +34,8 @@ pub use write_to_file::get_write_to_file_description;
 
 use crate::services::mcp::McpHub;
 use crate::shared::modes::{Mode, ModeConfig};
-use crate::services::diff::{DiffStrategy, types::ToolArgs};
+use crate::services::diff::DiffStrategy;
+use crate::prompts::tools::types::ToolArgs;
 
 #[allow(clippy::too_many_arguments)]
 pub fn get_tool_descriptions_for_mode(
