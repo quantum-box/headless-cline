@@ -3,6 +3,7 @@ use crate::services::mcp::McpHub;
 use std::fmt;
 
 #[derive(Default)]
+#[allow(dead_code)]
 pub struct ToolArgs<'a> {
     pub cwd: String,
     pub supports_computer_use: bool,

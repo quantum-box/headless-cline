@@ -1,5 +1,6 @@
 use crate::prompts::tools::types::ToolArgs;
 
+#[allow(dead_code)]
 pub fn get_use_mcp_tool_description(args: &ToolArgs) -> Option<String> {
     args.mcp_hub?;
 

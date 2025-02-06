@@ -1,5 +1,6 @@
 use crate::prompts::tools::types::ToolArgs;
 
+#[allow(dead_code)]
 pub fn get_search_and_replace_description(args: &ToolArgs) -> String {
     format!(
         r##"## search_and_replace
