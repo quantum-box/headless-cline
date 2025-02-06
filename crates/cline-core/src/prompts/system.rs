@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 use std::path::Path;
 
-use crate::prompts::PreferredLanguage;
+use crate::prompts::sections::custom_instructions::PreferredLanguage;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn generate_prompt(

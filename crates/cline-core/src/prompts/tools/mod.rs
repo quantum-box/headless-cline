@@ -28,13 +28,13 @@ pub use read_file::get_read_file_description;
 pub use search_and_replace::get_search_and_replace_description;
 pub use search_files::get_search_files_description;
 pub use switch_mode::get_switch_mode_description;
-pub use types::ToolArgs;
+
 pub use use_mcp_tool::get_use_mcp_tool_description;
 pub use write_to_file::get_write_to_file_description;
 
 use crate::services::mcp::McpHub;
 use crate::shared::modes::{Mode, ModeConfig};
-use crate::services::diff::DiffStrategy;
+use crate::services::diff::{DiffStrategy, types::ToolArgs};
 
 #[allow(clippy::too_many_arguments)]
 pub fn get_tool_descriptions_for_mode(
