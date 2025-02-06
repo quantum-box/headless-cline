@@ -1,4 +1,4 @@
-use crate::mcp::McpHub;
+use crate::services::mcp::McpHub;
 use crate::services::diff::DiffStrategy;
 
 pub fn get_capabilities_section(

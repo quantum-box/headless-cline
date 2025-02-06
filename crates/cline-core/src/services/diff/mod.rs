@@ -1,4 +1,4 @@
-mod strategies;
-mod types;
+pub mod strategies;
+pub mod types;
 
 pub use types::*;
