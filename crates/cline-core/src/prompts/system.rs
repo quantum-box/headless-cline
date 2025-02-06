@@ -40,7 +40,7 @@ pub async fn generate_prompt(
         None
     };
 
-    let (mcp_servers_section, modes_section) = tokio::join!(
+    let (mcp_servers_section, modes_section): (String, String) = tokio::join!(
         get_mcp_servers_section(mcp_hub, effective_diff_strategy, enable_mcp_server_creation),
         get_modes_section(context)
     );

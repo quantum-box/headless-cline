@@ -56,6 +56,7 @@ impl McpHub {
         Ok(hub)
     }
 
+    #[allow(dead_code)]
     fn watch_mcp_settings_file(&self) -> Result<()> {
         let settings_path = self.settings_path.clone();
         let _connections = Arc::clone(&self.connections);
@@ -88,6 +89,7 @@ impl McpHub {
         Ok(())
     }
 
+    #[allow(dead_code)]
     async fn reload_settings(&mut self) -> Result<()> {
         let content = fs::read_to_string(&self.settings_path)?;
         let settings: McpSettings = serde_json::from_str(&content)?;
@@ -95,6 +97,7 @@ impl McpHub {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn initialize_mcp_servers(&self) -> Result<()> {
         let content = fs::read_to_string(&self.settings_path)?;
         let settings: McpSettings = serde_json::from_str(&content)?;
@@ -108,6 +111,7 @@ impl McpHub {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn create_connection(&self, name: &str, config: &StdioConfig) -> Result<McpConnection> {
         let client = reqwest::Client::new();
 
@@ -125,6 +129,7 @@ impl McpHub {
         Ok(McpConnection { server, client })
     }
 
+    #[allow(dead_code)]
     async fn update_server_connections(
         &mut self,
         new_servers: HashMap<String, StdioConfig>,
@@ -156,6 +161,7 @@ impl McpHub {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn get_servers(&self) -> Vec<McpServer> {
         let connections = self.connections.lock().unwrap();
         connections
@@ -165,6 +171,7 @@ impl McpHub {
             .collect()
     }
 
+    #[allow(dead_code)]
     pub async fn call_tool(
         &self,
         server_name: &str,
@@ -188,6 +195,7 @@ impl McpHub {
         })
     }
 
+    #[allow(dead_code)]
     pub async fn read_resource(
         &self,
         server_name: &str,
@@ -210,6 +218,7 @@ impl McpHub {
         })
     }
 
+    #[allow(dead_code)]
     pub async fn toggle_tool_always_allow(
         &self,
         server_name: &str,
@@ -239,6 +248,7 @@ impl McpHub {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn toggle_server_disabled(&self, server_name: &str, disabled: bool) -> Result<()> {
         let content = fs::read_to_string(&self.settings_path)?;
         let mut settings: McpSettings = serde_json::from_str(&content)?;
@@ -263,6 +273,7 @@ impl McpHub {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn update_server_timeout(&self, server_name: &str, timeout: u32) -> Result<()> {
         let content = fs::read_to_string(&self.settings_path)?;
         let mut settings: McpSettings = serde_json::from_str(&content)?;
@@ -279,6 +290,7 @@ impl McpHub {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn get_mcp_servers_path(&self) -> String {
         self.workspace_path
             .join("mcp-servers")
@@ -286,6 +298,7 @@ impl McpHub {
             .to_string()
     }
 
+    #[allow(dead_code)]
     pub async fn get_mcp_settings_file_path(&self) -> String {
         self.settings_path.to_string_lossy().to_string()
     }
