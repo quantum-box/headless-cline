@@ -1,4 +1,5 @@
 pub mod message;
 pub mod modes;
 
-// Re-export only what's needed by other modules
+pub use message::{ClineAsk, ClineMessage, ClineMessageType, ClineSay};
+pub use modes::{Mode, ModeConfig};

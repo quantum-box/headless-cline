@@ -2,4 +2,6 @@ pub mod sections;
 pub mod system;
 pub mod tools;
 
-// Re-export only what's needed by other modules
+pub use sections::custom_instructions::PreferredLanguage;
+pub use system::{generate_prompt, system_prompt};
+pub use tools::types::ToolArgs;
