@@ -181,7 +181,7 @@ impl NewUnifiedDiffStrategy {
 
 #[async_trait]
 impl DiffStrategy for NewUnifiedDiffStrategy {
-    fn get_tool_description(&self, args: &services::diff::types::ToolArgs) -> String {
+    fn get_tool_description(&self, args: &ToolArgs) -> String {
         format!(
             r#"# apply_diff Tool - Generate Precise Code Changes
 
