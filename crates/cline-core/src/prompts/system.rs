@@ -127,7 +127,7 @@ pub async fn system_prompt(
         value.and_then(|prompts| prompts.get(mode))
     }
 
-    let mode_str = mode.as_ref().map(String::as_str).unwrap_or("");
+    let mode_str = mode.as_deref().unwrap_or("");
     let current_mode = get_mode_by_slug(mode_str.to_string(), custom_modes)
         .or_else(|| MODES.iter().find(|m| m.slug == mode_str))
         .unwrap_or(&MODES[0]);

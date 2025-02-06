@@ -12,7 +12,7 @@ pub struct ToolArgs<'a> {
     pub tool_options: Option<serde_json::Value>,
 }
 
-impl<'a> fmt::Debug for ToolArgs<'a> {
+impl fmt::Debug for ToolArgs<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ToolArgs")
             .field("cwd", &self.cwd)

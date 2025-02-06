@@ -1,9 +1,7 @@
 use crate::prompts::tools::types::ToolArgs;
 
 pub fn get_access_mcp_resource_description(args: &ToolArgs) -> Option<String> {
-    if args.mcp_hub.is_none() {
-        return None;
-    }
+    args.mcp_hub?;
 
     Some(r##"## access_mcp_resource
 Description: Request to access a resource provided by a connected MCP server. Resources represent data sources that can be used as context, such as files, API responses, or system information.
