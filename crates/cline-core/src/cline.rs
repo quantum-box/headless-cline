@@ -26,7 +26,7 @@ pub struct Cline {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
-enum ClineMessage {
+pub enum ClineMessage {
     Ask {
         ts: i64,
         text: Option<String>,
@@ -222,9 +222,7 @@ impl Cline {
         let contains_tool_use = assistant_message.contains("<tool>");
         if !contains_tool_use {
             // ツール使用がない場合は、次のリクエストのためのコンテンツを準備
-            let next_content = format!(
-                "No tools were used in the response. Please either use a tool or attempt completion."
-            );
+            let next_content = "No tools were used in the response. Please either use a tool or attempt completion.".to_string();
             return Box::pin(self.recursively_make_cline_requests(next_content, false)).await;
         }
 
@@ -298,7 +296,7 @@ impl Cline {
         if let Some(is_partial) = partial {
             if is_partial {
                 let last_message = self.cline_messages.last().cloned();
-                let is_updating_previous_partial = last_message.as_ref().map_or(false, |msg| {
+                let is_updating_previous_partial = last_message.as_ref().is_some_and(|msg| {
                     matches!(msg, ClineMessage::Ask { partial: true, .. })
                 });
 
@@ -324,7 +322,7 @@ impl Cline {
                 anyhow::bail!("Current ask promise was ignored");
             } else {
                 let last_message = self.cline_messages.last().cloned();
-                let is_updating_previous_partial = last_message.as_ref().map_or(false, |msg| {
+                let is_updating_previous_partial = last_message.as_ref().is_some_and(|msg| {
                     matches!(msg, ClineMessage::Ask { partial: true, .. })
                 });
 
@@ -372,7 +370,7 @@ impl Cline {
 
         if let Some(is_partial) = partial {
             let last_message = self.cline_messages.last().cloned();
-            let is_updating_previous_partial = last_message.as_ref().map_or(false, |msg| {
+            let is_updating_previous_partial = last_message.as_ref().is_some_and(|msg| {
                 matches!(msg, ClineMessage::Say { partial: true, .. })
             });
 
