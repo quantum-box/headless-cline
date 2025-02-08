@@ -1,7 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
-use futures_util::future::join_all;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -42,7 +41,7 @@ struct ApiMetrics {
 }
 
 #[derive(Debug, Serialize)]
-struct TaskHistory {
+pub struct TaskHistory {
     id: String,
     ts: i64,
     task: String,

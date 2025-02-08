@@ -15,7 +15,6 @@ use self::content::{
     get_file_or_folder_content, get_git_changes, get_git_commit_info, get_url_content,
     get_workspace_problems,
 };
-use self::types::{MentionContent, MentionType};
 
 lazy_static! {
     /// メンション検出用の正規表現
