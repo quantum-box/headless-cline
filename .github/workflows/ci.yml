@@ -54,8 +54,11 @@ jobs:
           sudo apt-get install -f
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Configure Git
+      - name: Install and Configure Git
         run: |
+          sudo apt-get update
+          sudo apt-get install -y git
           git config --global user.name "CI User"
           git config --global user.email "ci@example.com"
+          git config --global init.defaultBranch main
       - run: cargo test --workspace
