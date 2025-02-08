@@ -74,10 +74,10 @@ pub async fn get_file_or_folder_content(
 
 /// URLの内容を取得
 pub async fn get_url_content(url: &str, browser_session: &mut BrowserSession) -> Result<String> {
-    browser_session.launch_browser().await?;
-    let result = browser_session.url_to_markdown(url).await;
-    browser_session.close_browser().await?;
-    result
+    if !browser_session.is_initialized() {
+        return Err(anyhow::anyhow!("Browser not initialized"));
+    }
+    browser_session.url_to_markdown(url).await
 }
 
 /// ワークスペースの問題を取得

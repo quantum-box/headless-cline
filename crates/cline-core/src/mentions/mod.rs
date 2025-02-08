@@ -56,7 +56,8 @@ pub async fn parse_mentions(
             let content = get_workspace_problems(&diagnostics_provider).await?;
             (MentionType::Problems, content)
         } else {
-            let content = get_file_or_folder_content(workspace_path, &mention).await?;
+            let path = mention.trim_start_matches('#');
+            let content = get_file_or_folder_content(workspace_path, path).await?;
             if mention.ends_with('/') {
                 (MentionType::Folder, content)
             } else {
@@ -83,15 +84,22 @@ fn extract_mentions(text: &str) -> Vec<String> {
     let mut current_mention = String::new();
     let mut in_mention = false;
 
-    for c in text.chars() {
+    let chars: Vec<char> = text.chars().collect();
+    let len = chars.len();
+
+    for i in 0..len {
+        let c = chars[i];
         match c {
-            '#' | 'h' => {
-                if !in_mention {
+            '#' => {
+                // ハッシュが単語の先頭にある場合のみメンションとして扱う
+                if i == 0 || chars[i - 1].is_whitespace() {
                     in_mention = true;
                     current_mention.push(c);
-                } else {
-                    current_mention.push(c);
                 }
+            }
+            'h' if text[i..].starts_with("http") => {
+                in_mention = true;
+                current_mention.push(c);
             }
             ' ' | '\n' | '\t' => {
                 if in_mention {
@@ -110,6 +118,7 @@ fn extract_mentions(text: &str) -> Vec<String> {
         }
     }
 
+    // 最後のメンションを処理
     if in_mention && !current_mention.is_empty() {
         mentions.push(current_mention);
     }
@@ -119,33 +128,135 @@ fn extract_mentions(text: &str) -> Vec<String> {
 
 /// メンションを処理する必要があるかどうかを判定する
 pub fn should_process_mentions(text: &str) -> bool {
-    text.contains('#') || text.contains("http")
+    text.contains('#') && text.split_whitespace().any(|word| word.starts_with('#'))
+        || text.contains("http")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
+
+    // テスト用のヘルパー関数
+    fn setup_test_browser() -> BrowserSession {
+        BrowserSession::new()
+    }
 
     #[test]
     fn test_extract_mentions() {
-        let text = "Check #src/main.rs and #tests/test.rs\nAlso #git and #git:abc123\nAnd https://example.com";
-        let mentions = extract_mentions(text);
-        assert_eq!(
-            mentions,
-            vec![
-                "#src/main.rs",
-                "#tests/test.rs",
-                "#git",
-                "#git:abc123",
-                "https://example.com"
-            ]
-        );
+        let test_cases = vec![
+            (
+                "Check #src/main.rs and #tests/test.rs\nAlso #git and #git:abc123\nAnd https://example.com",
+                vec!["#src/main.rs", "#tests/test.rs", "#git", "#git:abc123", "https://example.com"],
+            ),
+            (
+                "No mentions here",
+                vec![],
+            ),
+            (
+                "#git #git:1234567 #problems",
+                vec!["#git", "#git:1234567", "#problems"],
+            ),
+            (
+                "Multiple #urls https://example1.com https://example2.com",
+                vec!["#urls", "https://example1.com", "https://example2.com"],
+            ),
+            (
+                "#folder/with/trailing/slash/ #file/without/slash",
+                vec!["#folder/with/trailing/slash/", "#file/without/slash"],
+            ),
+            (
+                "Text with hash# but not mention",
+                vec![],
+            ),
+        ];
+
+        for (input, expected) in test_cases {
+            let mentions = extract_mentions(input);
+            assert_eq!(mentions, expected, "Failed for input: {}", input);
+        }
     }
 
     #[test]
     fn test_should_process_mentions() {
-        assert!(should_process_mentions("Check #src/main.rs"));
-        assert!(should_process_mentions("Visit https://example.com"));
-        assert!(!should_process_mentions("No mentions here"));
+        let test_cases = vec![
+            ("Check #src/main.rs", true),
+            ("Visit https://example.com", true),
+            ("No mentions here", false),
+            ("#git changes", true),
+            ("Multiple #mentions #here", true),
+            ("Text with hash# but not mention", false),
+            ("https://multiple.com http://urls.com", true),
+            ("", false),
+        ];
+
+        for (input, expected) in test_cases {
+            assert_eq!(
+                should_process_mentions(input),
+                expected,
+                "Failed for input: {}",
+                input
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_parse_mentions_with_git() {
+        let workspace_path = PathBuf::from("/test/workspace");
+        let mut browser_session = setup_test_browser();
+        let text = "Check #git and #git:abc123";
+
+        let result = parse_mentions(text, &mut browser_session, &workspace_path).await;
+        assert!(
+            result.is_err(),
+            "Should fail with non-existent git repository"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_parse_mentions_with_problems() {
+        let workspace_path = PathBuf::from("/test/workspace");
+        let mut browser_session = setup_test_browser();
+        let text = "Check #problems";
+
+        let result = parse_mentions(text, &mut browser_session, &workspace_path).await;
+        assert!(result.is_ok(), "Should succeed with empty diagnostics");
+
+        let content = result.unwrap();
+        assert!(
+            content.contains("Check #problems"),
+            "Should contain original text"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_parse_mentions_with_url() {
+        let workspace_path = PathBuf::from("/test/workspace");
+        let mut browser_session = setup_test_browser();
+        let text = "Check https://example.com";
+
+        let result = parse_mentions(text, &mut browser_session, &workspace_path).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("Browser not initialized"),
+            "Expected 'Browser not initialized' error, got: {}",
+            err
+        );
+    }
+
+    #[tokio::test]
+    async fn test_parse_mentions_without_mentions() {
+        let workspace_path = PathBuf::from("/test/workspace");
+        let mut browser_session = setup_test_browser();
+        let text = "No mentions in this text";
+
+        let result = parse_mentions(text, &mut browser_session, &workspace_path).await;
+        assert!(result.is_ok(), "Should succeed with no mentions");
+        assert_eq!(
+            result.unwrap(),
+            text,
+            "Should return original text unchanged"
+        );
     }
 }

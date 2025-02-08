@@ -26,6 +26,10 @@ impl BrowserSession {
         }
     }
 
+    pub fn is_initialized(&self) -> bool {
+        self.browser.is_some() && self.tab.is_some()
+    }
+
     pub async fn launch_browser(&mut self) -> Result<()> {
         let options = LaunchOptionsBuilder::default()
             .headless(true)
