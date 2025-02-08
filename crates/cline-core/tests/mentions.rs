@@ -2,7 +2,6 @@ use anyhow::Result;
 use cline_core::mentions::{parse_mentions, should_process_mentions};
 use cline_core::services::browser::BrowserSession;
 use std::fs;
-use std::path::Path;
 use tempfile::TempDir;
 
 // テスト用のヘルパー関数

@@ -1,12 +1,14 @@
 use anyhow::Result;
 use headless_chrome::{Browser, LaunchOptionsBuilder, Tab};
 use html2md::parse_html;
+use std::ffi::OsStr;
 use std::fmt;
 use std::sync::Arc;
 
 pub struct BrowserSession {
     browser: Option<Browser>,
     tab: Option<Arc<Tab>>,
+    chrome_args: Vec<String>,
 }
 
 impl fmt::Debug for BrowserSession {
@@ -23,6 +25,7 @@ impl BrowserSession {
         Self {
             browser: None,
             tab: None,
+            chrome_args: Vec::new(),
         }
     }
 
@@ -30,21 +33,23 @@ impl BrowserSession {
         self.browser.is_some() && self.tab.is_some()
     }
 
+    pub fn set_chrome_args(&mut self, args: Vec<&str>) {
+        self.chrome_args = args.into_iter().map(String::from).collect();
+    }
+
     pub async fn launch_browser(&mut self) -> Result<()> {
-        let options = LaunchOptionsBuilder::default()
-            .headless(true)
-            .build()
-            .map_err(|e| anyhow::anyhow!("Failed to build browser options: {}", e))?;
+        let args: Vec<&OsStr> = self.chrome_args.iter().map(|s| OsStr::new(s)).collect();
+        let mut builder = LaunchOptionsBuilder::default();
+        builder.headless(true);
+        builder.args(args);
+        let options = builder.build()?;
 
-        let browser = Browser::new(options)
-            .map_err(|e| anyhow::anyhow!("Failed to launch browser: {}", e))?;
-
-        let tab = browser
-            .wait_for_initial_tab()
-            .map_err(|e| anyhow::anyhow!("Failed to get initial tab: {}", e))?;
+        let browser = Browser::new(options)?;
+        let tab = browser.new_tab()?;
 
         self.browser = Some(browser);
         self.tab = Some(tab);
+
         Ok(())
     }
 
