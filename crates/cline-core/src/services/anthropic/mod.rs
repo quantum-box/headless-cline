@@ -1,8 +1,9 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use futures_util::StreamExt;
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
-use std::env;
+use std::{env, fmt::Debug};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
@@ -46,6 +47,18 @@ struct Delta {
 
 pub type MessageCallback = Box<dyn FnMut(String) + Send + 'static>;
 
+#[cfg_attr(test, mockall::automock)]
+#[async_trait]
+pub trait AnthropicClientTrait: Send + Sync + Debug + Clone {
+    async fn send_message(&self, message: &str) -> Result<String>;
+    async fn attempt_api_request(
+        &self,
+        user_content: String,
+        include_file_details: bool,
+        on_chunk: MessageCallback,
+    ) -> Result<String>;
+}
+
 #[derive(Debug, Clone)]
 pub struct AnthropicClient {
     client: Client,
@@ -62,8 +75,11 @@ impl AnthropicClient {
             api_key,
         })
     }
+}
 
-    pub async fn send_message(&self, message: &str) -> Result<String> {
+#[async_trait]
+impl AnthropicClientTrait for AnthropicClient {
+    async fn send_message(&self, message: &str) -> Result<String> {
         let request_body = ClaudeRequest {
             model: "claude-3-sonnet-20240229".to_string(),
             messages: vec![Message {
@@ -93,7 +109,7 @@ impl AnthropicClient {
         Ok(claude_response.content[0].text.clone())
     }
 
-    pub async fn attempt_api_request(
+    async fn attempt_api_request(
         &self,
         user_content: String,
         _include_file_details: bool,
@@ -130,7 +146,7 @@ impl AnthropicClient {
         let mut assistant_message = String::new();
 
         while let Some(chunk) = stream.next().await {
-            let chunk = chunk?;
+            let chunk = chunk?.to_vec();
             let text = String::from_utf8_lossy(&chunk);
 
             for line in text.lines() {

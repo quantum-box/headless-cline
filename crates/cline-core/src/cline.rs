@@ -244,6 +244,11 @@ impl Cline {
         self.editor_info_provider = Some(provider);
     }
 
+    #[cfg(test)]
+    pub fn set_anthropic_client(&mut self, client: AnthropicClient) {
+        self.anthropic_client = client;
+    }
+
     pub async fn send_message(&self, message: &str) -> Result<String> {
         self.anthropic_client.send_message(message).await
     }
@@ -995,10 +1000,15 @@ pub trait Provider: std::fmt::Debug + Send + Sync {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::anthropic::MockAnthropicClientTrait;
     use pretty_assertions::assert_eq;
     use regex::Regex;
 
     async fn create_test_cline(mock_provider: MockEditorInfoProvider) -> Result<Cline> {
+        let mut mock_anthropic = MockAnthropicClientTrait::new();
+        mock_anthropic.expect_send_message().returning(|_| Ok("mocked response".to_string()));
+        mock_anthropic.expect_attempt_api_request().returning(|_, _, _| Ok("mocked response".to_string()));
+
         let mut cline = Cline::new(
             PathBuf::from("/test/workspace"),
             None,
@@ -1006,6 +1016,7 @@ mod tests {
             Some(1.0),
         )?;
         cline.set_editor_info_provider(Arc::new(mock_provider));
+        cline.set_anthropic_client(Box::new(mock_anthropic));
         Ok(cline)
     }
 
