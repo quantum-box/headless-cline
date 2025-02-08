@@ -1,6 +1,9 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
+use futures_util::future::join_all;
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -11,7 +14,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::fs;
 use uuid::Uuid;
 
+use crate::mentions::{parse_mentions, should_process_mentions};
 use crate::services::anthropic::{AnthropicClient, Message};
+use crate::services::browser::BrowserSession;
 use crate::services::terminal::TerminalManager;
 use crate::shared::message::{ClineAsk, ClineMessage, ClineSay};
 
@@ -135,6 +140,7 @@ pub struct Cline {
     did_already_use_tool: bool,
     terminal_manager: Option<Arc<Mutex<dyn TerminalManager + Send + Sync>>>,
     editor_info_provider: Option<Arc<dyn EditorInfoProvider>>,
+    browser_session: Option<Arc<Mutex<BrowserSession>>>,
     abort: bool,
     provider: Option<Arc<dyn Provider + Send + Sync>>,
 }
@@ -193,6 +199,20 @@ struct BrowserActionResult {
     screenshot: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserContent {
+    #[serde(rename = "type")]
+    content_type: String,
+    text: Option<String>,
+    images: Option<Vec<String>>,
+}
+
+lazy_static! {
+    static ref MENTION_REGEX: Regex = Regex::new(
+        r"@((?:/|\w+://)[^\s]+?|[a-f0-9]{7,40}\b|problems\b|git-changes\b)(?=[.,;:!?]?(?=[\s\r\n]|$))"
+    ).unwrap();
+}
+
 impl Cline {
     pub fn new(
         workspace_path: PathBuf,
@@ -215,6 +235,7 @@ impl Cline {
             did_already_use_tool: false,
             terminal_manager: None,
             editor_info_provider: None,
+            browser_session: Some(Arc::new(Mutex::new(BrowserSession::new()))),
             abort: false,
             provider: None,
         })
@@ -728,7 +749,9 @@ impl Cline {
         if let Some(terminal_manager) = &mut self.terminal_manager {
             terminal_manager.lock().unwrap().dispose_all();
         }
-        // ブラウザセッションの終了処理なども追加
+        if let Some(browser_session) = &mut self.browser_session {
+            browser_session.lock().unwrap().close_browser().await.ok();
+        }
     }
 
     pub async fn execute_command_tool(&mut self, command: String) -> Result<(bool, ToolResponse)> {
@@ -915,12 +938,53 @@ impl Cline {
         ))
     }
 
+    /// コンテキストを読み込む
+    pub async fn load_context(&self, text: String) -> Result<UserContent> {
+        if should_process_mentions(&text) {
+            if let Some(browser_session) = &self.browser_session {
+                let mut browser = browser_session.lock().unwrap();
+                let parsed_text = parse_mentions(&text, &mut browser, &self.workspace_path).await?;
+                Ok(UserContent {
+                    content_type: "text".to_string(),
+                    text: Some(parsed_text),
+                    images: None,
+                })
+            } else {
+                Ok(UserContent {
+                    content_type: "text".to_string(),
+                    text: Some(text),
+                    images: None,
+                })
+            }
+        } else {
+            Ok(UserContent {
+                content_type: "text".to_string(),
+                text: Some(text),
+                images: None,
+            })
+        }
+    }
+
     async fn ensure_task_directory_exists(&self) -> Result<PathBuf> {
         let task_dir = self.workspace_path.join(".cline").join(&self.task_id);
         if !task_dir.exists() {
             tokio::fs::create_dir_all(&task_dir).await?;
         }
         Ok(task_dir)
+    }
+
+    async fn get_file_or_folder_content(&self, mention_path: &str) -> Result<String> {
+        let abs_path = self.workspace_path.join(mention_path);
+
+        let metadata = tokio::fs::metadata(&abs_path).await?;
+        if metadata.is_dir() {
+            // TODO: ディレクトリ内容の取得を実装
+            Ok("Directory listing not implemented".to_string())
+        } else {
+            tokio::fs::read_to_string(&abs_path)
+                .await
+                .map_err(Into::into)
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 mod cline;
+pub(crate) mod mentions;
 mod prompts;
 mod services;
 mod shared;
