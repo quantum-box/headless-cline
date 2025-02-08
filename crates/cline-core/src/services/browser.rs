@@ -20,6 +20,12 @@ impl fmt::Debug for BrowserSession {
     }
 }
 
+impl Default for BrowserSession {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BrowserSession {
     pub fn new() -> Self {
         Self {
@@ -38,7 +44,7 @@ impl BrowserSession {
     }
 
     pub async fn launch_browser(&mut self) -> Result<()> {
-        let args: Vec<&OsStr> = self.chrome_args.iter().map(|s| OsStr::new(s)).collect();
+        let args: Vec<&OsStr> = self.chrome_args.iter().map(OsStr::new).collect();
         let mut builder = LaunchOptionsBuilder::default();
         builder.headless(true);
         builder.args(args);

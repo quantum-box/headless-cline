@@ -42,7 +42,7 @@ pub async fn parse_mentions(
 
     // メンションを長い順にソートして、部分文字列の置換を防ぐ
     let mut sorted_mentions = mentions;
-    sorted_mentions.sort_by(|a, b| b.len().cmp(&a.len()));
+    sorted_mentions.sort_by_key(|b| std::cmp::Reverse(b.len()));
 
     for mention in sorted_mentions {
         let (mention_type, content) = if mention.starts_with("http") {
