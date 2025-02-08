@@ -20,3 +20,8 @@ regex = "1.10.3"
 tempfile = "3.10.0"
 notify = "6.1.1"
 uuid = { version = "1.12.0", features = ["v4"] }
+chrono = { workspace = true }
+
+[dev-dependencies]
+mockall = "0.13"
+pretty_assertions = "1.4"

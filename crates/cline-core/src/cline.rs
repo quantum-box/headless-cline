@@ -1,6 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -110,6 +112,13 @@ pub enum AskResponse {
     MessageResponse,
 }
 
+#[cfg_attr(test, mockall::automock)]
+#[async_trait]
+pub trait EditorInfoProvider: Debug + Send + Sync {
+    async fn get_visible_files(&self) -> Result<Vec<String>>;
+    async fn get_open_tabs(&self) -> Result<Vec<String>>;
+}
+
 #[derive(Debug, Clone)]
 pub struct Cline {
     task_id: String,
@@ -125,6 +134,7 @@ pub struct Cline {
     did_reject_tool: bool,
     did_already_use_tool: bool,
     terminal_manager: Option<Arc<Mutex<dyn TerminalManager + Send + Sync>>>,
+    editor_info_provider: Option<Arc<dyn EditorInfoProvider>>,
     abort: bool,
     provider: Option<Arc<dyn Provider + Send + Sync>>,
 }
@@ -204,9 +214,14 @@ impl Cline {
             did_reject_tool: false,
             did_already_use_tool: false,
             terminal_manager: None,
+            editor_info_provider: None,
             abort: false,
             provider: None,
         })
+    }
+
+    pub fn set_editor_info_provider(&mut self, provider: Arc<dyn EditorInfoProvider>) {
+        self.editor_info_provider = Some(provider);
     }
 
     pub async fn send_message(&self, message: &str) -> Result<String> {
@@ -773,6 +788,133 @@ impl Cline {
         Ok(())
     }
 
+    pub async fn get_environment_details(&self, include_file_details: bool) -> Result<String> {
+        let mut details = String::new();
+
+        // Editor Visible Files
+        details.push_str("\n\n# Editor Visible Files\n");
+        if let Some(provider) = &self.editor_info_provider {
+            let visible_files = provider.get_visible_files().await?;
+            if visible_files.is_empty() {
+                details.push_str("(No visible files)");
+            } else {
+                details.push_str(&visible_files.join("\n"));
+            }
+        } else {
+            details.push_str("(Editor information not available)");
+        }
+
+        // Editor Open Tabs
+        details.push_str("\n\n# Editor Open Tabs\n");
+        if let Some(provider) = &self.editor_info_provider {
+            let open_tabs = provider.get_open_tabs().await?;
+            if open_tabs.is_empty() {
+                details.push_str("(No open tabs)");
+            } else {
+                details.push_str(&open_tabs.join("\n"));
+            }
+        } else {
+            details.push_str("(Editor information not available)");
+        }
+
+        // Terminal Details
+        if let Some(terminal_manager) = &self.terminal_manager {
+            let mut terminal_manager = terminal_manager.lock().unwrap();
+            let busy_terminals = terminal_manager.get_terminals(true);
+            let inactive_terminals = terminal_manager.get_terminals(false);
+
+            if !busy_terminals.is_empty() && self.did_edit_file {
+                tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+            }
+
+            let mut terminal_details = String::new();
+
+            // Actively Running Terminals
+            if !busy_terminals.is_empty() {
+                terminal_details.push_str("\n\n# Actively Running Terminals");
+                for terminal in busy_terminals {
+                    terminal_details.push_str(&format!(
+                        "\n## Original command: `{}`",
+                        terminal.last_command
+                    ));
+                    if let Some(output) = terminal_manager.get_unretrieved_output(terminal.id) {
+                        terminal_details.push_str(&format!("\n### New Output\n{}", output));
+                    }
+                }
+            }
+
+            // Inactive Terminals
+            if !inactive_terminals.is_empty() {
+                let mut inactive_terminal_outputs = HashMap::new();
+                for terminal in &inactive_terminals {
+                    if let Some(output) = terminal_manager.get_unretrieved_output(terminal.id) {
+                        inactive_terminal_outputs.insert(terminal.id, output);
+                    }
+                }
+
+                if !inactive_terminal_outputs.is_empty() {
+                    terminal_details.push_str("\n\n# Inactive Terminals");
+                    for terminal in inactive_terminals {
+                        if let Some(output) = inactive_terminal_outputs.get(&terminal.id) {
+                            terminal_details.push_str(&format!("\n## {}", terminal.last_command));
+                            terminal_details.push_str(&format!("\n### New Output\n{}", output));
+                        }
+                    }
+                }
+            }
+
+            if !terminal_details.is_empty() {
+                details.push_str(&terminal_details);
+            }
+        }
+
+        // Current Time
+        let now: DateTime<Local> = SystemTime::now().into();
+        let timezone_offset = now.offset().local_minus_utc() as f32 / 3600.0;
+        let timezone_offset_str = format!("{:+}:00", timezone_offset);
+
+        details.push_str("\n\n# Current Time\n");
+        details.push_str(&format!(
+            "{} ({}, UTC{})",
+            now.format("%Y-%m-%d %I:%M:%S %p"),
+            Local::now().format("%Z"),
+            timezone_offset_str
+        ));
+
+        // Context Size
+        let api_metrics = get_api_metrics(&self.cline_messages);
+        let context_tokens = api_metrics.total_tokens_in + api_metrics.total_tokens_out;
+        let context_window = 128_000; // Claude 3.5 Sonnetのコンテキストウィンドウサイズ
+        let context_percentage = (context_tokens as f64 / context_window as f64 * 100.0).round();
+
+        details.push_str("\n\n# Current Context Size (Tokens)\n");
+        details.push_str(&format!(
+            "{} ({}%)",
+            context_tokens.to_string(),
+            context_percentage
+        ));
+
+        // Current Mode
+        details.push_str("\n\n# Current Mode\n");
+        details.push_str("default"); // モード機能は別途実装が必要
+
+        // Current Working Directory Files
+        if include_file_details {
+            details.push_str(&format!(
+                "\n\n# Current Working Directory ({}) Files\n",
+                self.workspace_path.display()
+            ));
+
+            // TODO: list_filesの実装が必要
+            details.push_str("(File listing not implemented)");
+        }
+
+        Ok(format!(
+            "<environment_details>\n{}\n</environment_details>",
+            details.trim()
+        ))
+    }
+
     async fn ensure_task_directory_exists(&self) -> Result<PathBuf> {
         let task_dir = self.workspace_path.join(".cline").join(&self.task_id);
         if !task_dir.exists() {
@@ -785,4 +927,135 @@ impl Cline {
 #[async_trait]
 pub trait Provider: std::fmt::Debug + Send + Sync {
     async fn update_task_history(&self, history: TaskHistory) -> Result<()>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+    use regex::Regex;
+
+    async fn create_test_cline(mock_provider: MockEditorInfoProvider) -> Result<Cline> {
+        let mut cline = Cline::new(
+            PathBuf::from("/test/workspace"),
+            None,
+            Some(false),
+            Some(1.0),
+        )?;
+        cline.set_editor_info_provider(Arc::new(mock_provider));
+        Ok(cline)
+    }
+
+    #[tokio::test]
+    async fn test_get_environment_details() {
+        let mut mock = MockEditorInfoProvider::new();
+        mock.expect_get_visible_files()
+            .returning(|| Ok(vec!["file1.rs".to_string(), "file2.rs".to_string()]));
+        mock.expect_get_open_tabs()
+            .returning(|| Ok(vec!["tab1.rs".to_string(), "tab2.rs".to_string()]));
+
+        let cline = create_test_cline(mock).await.unwrap();
+        let details = cline.get_environment_details(true).await.unwrap();
+        println!("Generated details:\n{}", details);
+
+        let time_regex = Regex::new(
+            r"\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}:\d{2} (?:AM|PM) \([+-]\d{1,2}:00, UTC[+-]\d{1,2}:00\)"
+        ).unwrap();
+        let normalized_details = time_regex.replace(&details, "TIME_PLACEHOLDER");
+
+        let expected = r#"<environment_details>
+# Editor Visible Files
+file1.rs
+file2.rs
+
+# Editor Open Tabs
+tab1.rs
+tab2.rs
+
+# Current Time
+TIME_PLACEHOLDER
+
+# Current Context Size (Tokens)
+0 (0%)
+
+# Current Mode
+default
+
+# Current Working Directory (/test/workspace) Files
+(File listing not implemented)
+</environment_details>"#;
+
+        assert_eq!(normalized_details, expected);
+    }
+
+    #[tokio::test]
+    async fn test_get_environment_details_with_empty_files() {
+        let mut mock = MockEditorInfoProvider::new();
+        mock.expect_get_visible_files().returning(|| Ok(vec![]));
+        mock.expect_get_open_tabs().returning(|| Ok(vec![]));
+
+        let cline = create_test_cline(mock).await.unwrap();
+        let details = cline.get_environment_details(true).await.unwrap();
+
+        let time_regex = Regex::new(
+            r"\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}:\d{2} (?:AM|PM) \([+-]\d{1,2}:00, UTC[+-]\d{1,2}:00\)"
+        ).unwrap();
+        let normalized_details = time_regex.replace(&details, "TIME_PLACEHOLDER");
+
+        let expected = r#"<environment_details>
+# Editor Visible Files
+(No visible files)
+
+# Editor Open Tabs
+(No open tabs)
+
+# Current Time
+TIME_PLACEHOLDER
+
+# Current Context Size (Tokens)
+0 (0%)
+
+# Current Mode
+default
+
+# Current Working Directory (/test/workspace) Files
+(File listing not implemented)
+</environment_details>"#;
+
+        assert_eq!(normalized_details, expected);
+    }
+
+    #[tokio::test]
+    async fn test_get_environment_details_without_file_details() {
+        let mut mock = MockEditorInfoProvider::new();
+        mock.expect_get_visible_files().returning(|| Ok(vec![]));
+        mock.expect_get_open_tabs().returning(|| Ok(vec![]));
+
+        let cline = create_test_cline(mock).await.unwrap();
+        let details = cline.get_environment_details(false).await.unwrap();
+
+        let time_regex = Regex::new(
+            r"\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}:\d{2} (?:AM|PM) \([+-]\d{1,2}:00, UTC[+-]\d{1,2}:00\)"
+        ).unwrap();
+        let normalized_details = time_regex.replace(&details, "TIME_PLACEHOLDER");
+
+        let expected = r#"<environment_details>
+# Editor Visible Files
+(No visible files)
+
+# Editor Open Tabs
+(No open tabs)
+
+# Current Time
+TIME_PLACEHOLDER
+
+# Current Context Size (Tokens)
+0 (0%)
+
+# Current Mode
+default
+</environment_details>"#;
+
+        assert_eq!(normalized_details, expected);
+    }
 }
