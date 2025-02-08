@@ -8,6 +8,10 @@ use tempfile::TempDir;
 // テスト用のヘルパー関数
 async fn setup_test_browser() -> Result<BrowserSession> {
     let mut browser_session = BrowserSession::new();
+    // CIでは--no-sandboxオプションが必要
+    if std::env::var("CI").is_ok() {
+        browser_session.set_chrome_args(vec!["--no-sandbox", "--headless"]);
+    }
     browser_session.launch_browser().await?;
     Ok(browser_session)
 }
@@ -49,6 +53,11 @@ fn setup_test_workspace() -> TempDir {
         &[],
     )
     .unwrap();
+
+    // Gitの設定を追加（CIで必要）
+    let mut config = repo.config().unwrap();
+    config.set_str("user.name", "Test User").unwrap();
+    config.set_str("user.email", "test@example.com").unwrap();
 
     temp_dir
 }
