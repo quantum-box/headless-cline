@@ -10,6 +10,11 @@ globs: *.tsx,*.ts,*.rs
 https://github.com/RooVetGit/Roo-Code
 Roo codeをRustで書き換えるプロジェクトです。
 
+roo-codeの `src/core`　のコードは docs/cline.txtに置いてあります
+20000行以上あり、全てを参照するとコンテキストが多すぎるため、検索して特定の行のみを参照するのがおすすめです。
+
+`./crates/cline-core` はvscodeに依存しません。
+
 ## ファイル構成
 
 ### メインファイル
