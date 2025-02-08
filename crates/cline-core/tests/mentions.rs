@@ -10,7 +10,12 @@ async fn setup_test_browser() -> Result<BrowserSession> {
     // CIでは--no-sandboxオプションが必要
     if std::env::var("CI").is_ok() {
         browser_session.set_chrome_args(vec!["--no-sandbox", "--headless"]);
+    } else {
+        // ローカルでのテスト用
+        browser_session.set_chrome_args(vec!["--headless"]);
     }
+    // Chromeのパスを設定
+    std::env::set_var("CHROME_PATH", "/usr/bin/google-chrome");
     browser_session.launch_browser().await?;
     Ok(browser_session)
 }
