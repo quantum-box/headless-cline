@@ -1,4 +1,4 @@
-name: CI
+name: Test
 
 on:
   push:
@@ -6,49 +6,59 @@ on:
   pull_request:
     branches: [ main ]
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
   check:
     name: Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Run cargo check
-        run: cargo check --workspace
+      - run: cargo check --workspace
 
-  test:
-    name: Test
-    runs-on: ubuntu-latest
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
       - uses: Swatinem/rust-cache@v2
-      - name: Run tests
-        run: cargo test --workspace
+      - run: cargo fmt --all -- --check
 
   clippy:
     name: Clippy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Run clippy
-        run: cargo clippy --workspace -- -D warnings
+      - run: cargo clippy --workspace -- -D warnings
 
-  fmt:
-    name: Rustfmt
-    runs-on: ubuntu-latest
+  test:
+    name: Test
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Install Chrome
+        run: |
+          wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo dpkg -i google-chrome-stable_current_amd64.deb
+          sudo apt-get install -f
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - name: Run rustfmt
-        run: cargo fmt --all -- --check
+      - uses: Swatinem/rust-cache@v2
+      - name: Install and Configure Git
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git
+          git config --global user.name "CI User"
+          git config --global user.email "ci@example.com"
+          git config --global init.defaultBranch main
+      - run: cargo test --workspace

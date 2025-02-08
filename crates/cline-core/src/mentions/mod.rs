@@ -15,7 +15,6 @@ use self::content::{
     get_file_or_folder_content, get_git_changes, get_git_commit_info, get_url_content,
     get_workspace_problems,
 };
-use self::types::{MentionContent, MentionType};
 
 lazy_static! {
     /// メンション検出用の正規表現
@@ -43,7 +42,7 @@ pub async fn parse_mentions(
 
     // メンションを長い順にソートして、部分文字列の置換を防ぐ
     let mut sorted_mentions = mentions;
-    sorted_mentions.sort_by(|a, b| b.len().cmp(&a.len()));
+    sorted_mentions.sort_by_key(|b| std::cmp::Reverse(b.len()));
 
     for mention in sorted_mentions {
         let (mention_type, content) = if mention.starts_with("http") {

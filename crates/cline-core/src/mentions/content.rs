@@ -2,7 +2,6 @@ use anyhow::Result;
 use std::path::Path;
 use tokio::fs;
 
-use super::types::MentionContent;
 use crate::services::browser::BrowserSession;
 use crate::services::diagnostics::DiagnosticsProvider;
 use crate::services::git::GitService;

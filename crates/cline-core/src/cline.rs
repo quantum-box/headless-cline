@@ -1,7 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
-use futures_util::future::join_all;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -15,7 +14,7 @@ use tokio::fs;
 use uuid::Uuid;
 
 use crate::mentions::{parse_mentions, should_process_mentions};
-use crate::services::anthropic::{AnthropicClient, Message};
+use crate::services::anthropic::{AnthropicClient, AnthropicClientTrait, Message};
 use crate::services::browser::BrowserSession;
 use crate::services::terminal::TerminalManager;
 use crate::shared::message::{ClineAsk, ClineMessage, ClineSay};
@@ -42,7 +41,7 @@ struct ApiMetrics {
 }
 
 #[derive(Debug, Serialize)]
-struct TaskHistory {
+pub struct TaskHistory {
     id: String,
     ts: i64,
     task: String,
@@ -88,7 +87,7 @@ async fn file_exists(path: &PathBuf) -> bool {
     tokio::fs::metadata(path).await.is_ok()
 }
 
-fn get_api_metrics(messages: &[ClineMessage]) -> ApiMetrics {
+fn get_api_metrics(_messages: &[ClineMessage]) -> ApiMetrics {
     // 実際のメトリクス計算ロジックを実装
     ApiMetrics {
         total_tokens_in: 0,
@@ -209,8 +208,9 @@ pub struct UserContent {
 
 lazy_static! {
     static ref MENTION_REGEX: Regex = Regex::new(
-        r"@((?:/|\w+://)[^\s]+?|[a-f0-9]{7,40}\b|problems\b|git-changes\b)(?=[.,;:!?]?(?=[\s\r\n]|$))"
-    ).unwrap();
+        r"@((?:/|\w+://)[^\s]+?|[a-f0-9]{7,40}\b|problems\b|git-changes\b)[.,;:!?]?(?:[\s\r\n]|$)",
+    )
+    .unwrap();
 }
 
 impl Cline {
@@ -243,6 +243,11 @@ impl Cline {
 
     pub fn set_editor_info_provider(&mut self, provider: Arc<dyn EditorInfoProvider>) {
         self.editor_info_provider = Some(provider);
+    }
+
+    #[cfg(test)]
+    pub fn set_anthropic_client(&mut self, client: AnthropicClient) {
+        self.anthropic_client = client;
     }
 
     pub async fn send_message(&self, message: &str) -> Result<String> {
@@ -419,7 +424,7 @@ impl Cline {
 
     pub async fn ask(
         &mut self,
-        ask_type: String,
+        _ask_type: String,
         text: Option<String>,
         partial: Option<bool>,
     ) -> Result<(AskResponse, Option<String>, Option<Vec<String>>)> {
@@ -516,7 +521,7 @@ impl Cline {
 
     pub async fn say(
         &mut self,
-        say_type: String,
+        _say_type: String,
         text: Option<String>,
         images: Option<Vec<String>>,
         partial: Option<bool>,
@@ -744,13 +749,20 @@ impl Cline {
         Ok(())
     }
 
+    #[allow(clippy::await_holding_lock)]
     pub async fn abort_task(&mut self) {
         self.abort = true;
         if let Some(terminal_manager) = &mut self.terminal_manager {
-            terminal_manager.lock().unwrap().dispose_all();
+            {
+                let mut manager = terminal_manager.lock().unwrap();
+                manager.dispose_all();
+            }
         }
-        if let Some(browser_session) = &mut self.browser_session {
-            browser_session.lock().unwrap().close_browser().await.ok();
+        if let Some(browser_session) = &self.browser_session {
+            {
+                let mut browser = browser_session.lock().unwrap();
+                let _ = browser.close_browser().await;
+            }
         }
     }
 
@@ -763,7 +775,7 @@ impl Cline {
             .unwrap()
             .get_or_create_terminal(self.workspace_path.to_string_lossy().to_string())?;
 
-        let process = self
+        let _process = self
             .terminal_manager
             .as_mut()
             .ok_or_else(|| anyhow::anyhow!("Terminal manager not initialized"))?
@@ -842,9 +854,13 @@ impl Cline {
 
         // Terminal Details
         if let Some(terminal_manager) = &self.terminal_manager {
-            let mut terminal_manager = terminal_manager.lock().unwrap();
-            let busy_terminals = terminal_manager.get_terminals(true);
-            let inactive_terminals = terminal_manager.get_terminals(false);
+            let busy_terminals;
+            let inactive_terminals;
+            {
+                let terminal_manager = terminal_manager.lock().unwrap();
+                busy_terminals = terminal_manager.get_terminals(true);
+                inactive_terminals = terminal_manager.get_terminals(false);
+            }
 
             if !busy_terminals.is_empty() && self.did_edit_file {
                 tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
@@ -860,7 +876,11 @@ impl Cline {
                         "\n## Original command: `{}`",
                         terminal.last_command
                     ));
-                    if let Some(output) = terminal_manager.get_unretrieved_output(terminal.id) {
+                    let output = {
+                        let mut manager = terminal_manager.lock().unwrap();
+                        manager.get_unretrieved_output(terminal.id)
+                    };
+                    if let Some(output) = output {
                         terminal_details.push_str(&format!("\n### New Output\n{}", output));
                     }
                 }
@@ -869,9 +889,12 @@ impl Cline {
             // Inactive Terminals
             if !inactive_terminals.is_empty() {
                 let mut inactive_terminal_outputs = HashMap::new();
-                for terminal in &inactive_terminals {
-                    if let Some(output) = terminal_manager.get_unretrieved_output(terminal.id) {
-                        inactive_terminal_outputs.insert(terminal.id, output);
+                {
+                    let mut manager = terminal_manager.lock().unwrap();
+                    for terminal in &inactive_terminals {
+                        if let Some(output) = manager.get_unretrieved_output(terminal.id) {
+                            inactive_terminal_outputs.insert(terminal.id, output);
+                        }
                     }
                 }
 
@@ -911,11 +934,7 @@ impl Cline {
         let context_percentage = (context_tokens as f64 / context_window as f64 * 100.0).round();
 
         details.push_str("\n\n# Current Context Size (Tokens)\n");
-        details.push_str(&format!(
-            "{} ({}%)",
-            context_tokens.to_string(),
-            context_percentage
-        ));
+        details.push_str(&format!("{} ({}%)", context_tokens, context_percentage));
 
         // Current Mode
         details.push_str("\n\n# Current Mode\n");
@@ -939,11 +958,14 @@ impl Cline {
     }
 
     /// コンテキストを読み込む
+    #[allow(clippy::await_holding_lock)]
     pub async fn load_context(&self, text: String) -> Result<UserContent> {
         if should_process_mentions(&text) {
             if let Some(browser_session) = &self.browser_session {
-                let mut browser = browser_session.lock().unwrap();
-                let parsed_text = parse_mentions(&text, &mut browser, &self.workspace_path).await?;
+                let parsed_text = {
+                    let mut browser = browser_session.lock().unwrap();
+                    parse_mentions(&text, &mut browser, &self.workspace_path).await?
+                };
                 Ok(UserContent {
                     content_type: "text".to_string(),
                     text: Some(parsed_text),
@@ -973,6 +995,7 @@ impl Cline {
         Ok(task_dir)
     }
 
+    #[allow(dead_code)]
     async fn get_file_or_folder_content(&self, mention_path: &str) -> Result<String> {
         let abs_path = self.workspace_path.join(mention_path);
 
@@ -996,18 +1019,38 @@ pub trait Provider: std::fmt::Debug + Send + Sync {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::anthropic::MockAnthropicClientTrait;
+    use crate::services::browser::BrowserSession;
     use pretty_assertions::assert_eq;
     use regex::Regex;
 
     async fn create_test_cline(mock_provider: MockEditorInfoProvider) -> Result<Cline> {
-        let mut cline = Cline::new(
-            PathBuf::from("/test/workspace"),
-            None,
-            Some(false),
-            Some(1.0),
-        )?;
-        cline.set_editor_info_provider(Arc::new(mock_provider));
-        Ok(cline)
+        let mut mock = MockAnthropicClientTrait::new();
+        mock.expect_send_message()
+            .returning(|_| Ok("mocked response".to_string()));
+        mock.expect_attempt_api_request()
+            .returning(|_, _, _| Ok("mocked response".to_string()));
+        let mock_anthropic = AnthropicClient::mock(mock);
+
+        Ok(Cline {
+            task_id: Uuid::new_v4().to_string(),
+            anthropic_client: mock_anthropic,
+            workspace_path: PathBuf::from("/test/workspace"),
+            did_edit_file: false,
+            custom_instructions: None,
+            diff_enabled: false,
+            fuzzy_match_threshold: 1.0,
+            api_conversation_history: Vec::new(),
+            cline_messages: Vec::new(),
+            did_complete_reading_stream: false,
+            did_reject_tool: false,
+            did_already_use_tool: false,
+            terminal_manager: None,
+            editor_info_provider: Some(Arc::new(mock_provider)),
+            browser_session: Some(Arc::new(Mutex::new(BrowserSession::new()))),
+            abort: false,
+            provider: None,
+        })
     }
 
     #[tokio::test]

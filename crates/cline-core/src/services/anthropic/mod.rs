@@ -1,8 +1,11 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use futures_util::StreamExt;
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
-use std::env;
+#[cfg(test)]
+use std::sync::Arc;
+use std::{env, fmt::Debug};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
@@ -46,10 +49,26 @@ struct Delta {
 
 pub type MessageCallback = Box<dyn FnMut(String) + Send + 'static>;
 
+#[cfg_attr(test, mockall::automock)]
+#[async_trait]
+pub trait AnthropicClientTrait: Send + Sync + std::fmt::Debug {
+    async fn send_message(&self, message: &str) -> Result<String>;
+    async fn attempt_api_request(
+        &self,
+        user_content: String,
+        include_file_details: bool,
+        on_chunk: MessageCallback,
+    ) -> Result<String>;
+}
+
 #[derive(Debug, Clone)]
-pub struct AnthropicClient {
-    client: Client,
-    api_key: String,
+pub enum AnthropicClient {
+    Real {
+        client: Client,
+        api_key: String,
+    },
+    #[cfg(test)]
+    Mock(Arc<MockAnthropicClientTrait>),
 }
 
 impl AnthropicClient {
@@ -57,100 +76,122 @@ impl AnthropicClient {
         let api_key = env::var("ANTHROPIC_API_KEY")
             .map_err(|_| anyhow::anyhow!("ANTHROPIC_API_KEY environment variable not set"))?;
 
-        Ok(Self {
+        Ok(Self::Real {
             client: Client::new(),
             api_key,
         })
     }
 
-    pub async fn send_message(&self, message: &str) -> Result<String> {
-        let request_body = ClaudeRequest {
-            model: "claude-3-sonnet-20240229".to_string(),
-            messages: vec![Message {
-                role: "user".to_string(),
-                content: message.to_string(),
-            }],
-            max_tokens: 1000,
-            stream: false,
-        };
+    #[cfg(test)]
+    pub fn mock(mock: MockAnthropicClientTrait) -> Self {
+        Self::Mock(Arc::new(mock))
+    }
+}
 
-        let response = self
-            .client
-            .post("https://api.anthropic.com/v1/messages")
-            .header("accept", "application/json")
-            .header("content-type", "application/json")
-            .header("x-api-key", &self.api_key)
-            .header("anthropic-version", "2023-06-01")
-            .json(&request_body)
-            .send()
-            .await?;
+#[async_trait]
+impl AnthropicClientTrait for AnthropicClient {
+    async fn send_message(&self, message: &str) -> Result<String> {
+        match self {
+            Self::Real { client, api_key } => {
+                let request_body = ClaudeRequest {
+                    model: "claude-3-sonnet-20240229".to_string(),
+                    messages: vec![Message {
+                        role: "user".to_string(),
+                        content: message.to_string(),
+                    }],
+                    max_tokens: 1000,
+                    stream: false,
+                };
 
-        if response.status() != StatusCode::OK {
-            anyhow::bail!("API request failed: {}", response.text().await?);
+                let response = client
+                    .post("https://api.anthropic.com/v1/messages")
+                    .header("accept", "application/json")
+                    .header("content-type", "application/json")
+                    .header("x-api-key", api_key)
+                    .header("anthropic-version", "2023-06-01")
+                    .json(&request_body)
+                    .send()
+                    .await?;
+
+                if response.status() != StatusCode::OK {
+                    anyhow::bail!("API request failed: {}", response.text().await?);
+                }
+
+                let claude_response: ClaudeResponse = response.json().await?;
+                Ok(claude_response.content[0].text.clone())
+            }
+            #[cfg(test)]
+            Self::Mock(mock) => mock.as_ref().send_message(message).await,
         }
-
-        let claude_response: ClaudeResponse = response.json().await?;
-        Ok(claude_response.content[0].text.clone())
     }
 
-    pub async fn attempt_api_request(
+    async fn attempt_api_request(
         &self,
         user_content: String,
         _include_file_details: bool,
         mut on_chunk: MessageCallback,
     ) -> Result<String> {
-        let request_body = ClaudeRequest {
-            model: "claude-3-sonnet-20240229".to_string(),
-            messages: vec![Message {
-                role: "user".to_string(),
-                content: user_content,
-            }],
-            max_tokens: 1000,
-            stream: true,
-        };
+        match self {
+            Self::Real { client, api_key } => {
+                let request_body = ClaudeRequest {
+                    model: "claude-3-sonnet-20240229".to_string(),
+                    messages: vec![Message {
+                        role: "user".to_string(),
+                        content: user_content,
+                    }],
+                    max_tokens: 1000,
+                    stream: true,
+                };
 
-        let response = self
-            .client
-            .post("https://api.anthropic.com/v1/messages")
-            .header("accept", "application/json")
-            .header("content-type", "application/json")
-            .header("x-api-key", &self.api_key)
-            .header("anthropic-version", "2023-06-01")
-            .json(&request_body)
-            .send()
-            .await?;
+                let response = client
+                    .post("https://api.anthropic.com/v1/messages")
+                    .header("accept", "application/json")
+                    .header("content-type", "application/json")
+                    .header("x-api-key", api_key)
+                    .header("anthropic-version", "2023-06-01")
+                    .json(&request_body)
+                    .send()
+                    .await?;
 
-        if response.status() != StatusCode::OK {
-            let error_text = response.text().await?;
-            tracing::error!("API request failed: {}", error_text);
-            anyhow::bail!("API request failed: {}", error_text);
-        }
+                if response.status() != StatusCode::OK {
+                    let error_text = response.text().await?;
+                    tracing::error!("API request failed: {}", error_text);
+                    anyhow::bail!("API request failed: {}", error_text);
+                }
 
-        let mut stream = response.bytes_stream();
-        let mut assistant_message = String::new();
+                let mut stream = response.bytes_stream();
+                let mut assistant_message = String::new();
 
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk?;
-            let text = String::from_utf8_lossy(&chunk);
+                while let Some(chunk) = stream.next().await {
+                    let chunk = chunk?.to_vec();
+                    let text = String::from_utf8_lossy(&chunk);
 
-            for line in text.lines() {
-                if let Some(data) = line.strip_prefix("data: ") {
-                    if data == "[DONE]" {
-                        continue;
-                    }
+                    for line in text.lines() {
+                        if let Some(data) = line.strip_prefix("data: ") {
+                            if data == "[DONE]" {
+                                continue;
+                            }
 
-                    if let Ok(response) = serde_json::from_str::<StreamResponse>(data) {
-                        if let Some(delta) = response.delta {
-                            if delta.delta_type == "text_delta" {
-                                assistant_message.push_str(&delta.text);
-                                on_chunk(assistant_message.clone());
+                            if let Ok(response) = serde_json::from_str::<StreamResponse>(data) {
+                                if let Some(delta) = response.delta {
+                                    if delta.delta_type == "text_delta" {
+                                        assistant_message.push_str(&delta.text);
+                                        on_chunk(assistant_message.clone());
+                                    }
+                                }
                             }
                         }
                     }
                 }
+
+                Ok(assistant_message)
+            }
+            #[cfg(test)]
+            Self::Mock(mock) => {
+                mock.as_ref()
+                    .attempt_api_request(user_content, _include_file_details, on_chunk)
+                    .await
             }
         }
-
-        Ok(assistant_message)
     }
 }
