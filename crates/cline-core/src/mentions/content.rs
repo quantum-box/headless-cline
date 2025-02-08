@@ -91,10 +91,10 @@ pub async fn get_git_changes(workspace_path: &Path) -> Result<String> {
     git_service.get_working_state(workspace_path).await
 }
 
-/// Gitコミット情報を取得
+/// Gitのコミット情報を取得
 pub async fn get_git_commit_info(commit_hash: &str, workspace_path: &Path) -> Result<String> {
     let git_service = GitService::new();
     git_service
-        .get_commit_info(commit_hash, workspace_path)
+        .get_commit_info(workspace_path, commit_hash)
         .await
 }

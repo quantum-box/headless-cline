@@ -41,7 +41,11 @@ pub async fn parse_mentions(
     let mut result = text.to_string();
     let diagnostics_provider = DiagnosticsProvider::new();
 
-    for mention in mentions {
+    // メンションを長い順にソートして、部分文字列の置換を防ぐ
+    let mut sorted_mentions = mentions;
+    sorted_mentions.sort_by(|a, b| b.len().cmp(&a.len()));
+
+    for mention in sorted_mentions {
         let (mention_type, content) = if mention.starts_with("http") {
             let content = get_url_content(&mention, browser_session).await?;
             (MentionType::Url, content)
@@ -71,7 +75,14 @@ pub async fn parse_mentions(
             description: None,
         };
 
-        result = result.replace(&mention, &format!("{} (see below for content)", mention));
+        // メンションを置換
+        let pattern = regex::escape(&mention);
+        let re = Regex::new(&pattern).unwrap();
+        result = re
+            .replace_all(&result, format!("{} (see below for content)", mention))
+            .to_string();
+
+        // コンテンツを追加
         result.push_str(&format!("\n\n{}\n{}\n", mention_content.value, content));
     }
 
@@ -81,46 +92,19 @@ pub async fn parse_mentions(
 /// メンションを抽出する
 fn extract_mentions(text: &str) -> Vec<String> {
     let mut mentions = Vec::new();
-    let mut current_mention = String::new();
-    let mut in_mention = false;
 
-    let chars: Vec<char> = text.chars().collect();
-    let len = chars.len();
+    // メンションパターンを定義
+    let mention_patterns = [
+        // ハッシュで始まるメンション
+        Regex::new(r"#[^\s]+").unwrap(),
+        // HTTPで始まるメンション
+        Regex::new(r"https?://[^\s]+").unwrap(),
+    ];
 
-    for i in 0..len {
-        let c = chars[i];
-        match c {
-            '#' => {
-                // ハッシュが単語の先頭にある場合のみメンションとして扱う
-                if i == 0 || chars[i - 1].is_whitespace() {
-                    in_mention = true;
-                    current_mention.push(c);
-                }
-            }
-            'h' if text[i..].starts_with("http") => {
-                in_mention = true;
-                current_mention.push(c);
-            }
-            ' ' | '\n' | '\t' => {
-                if in_mention {
-                    if !current_mention.is_empty() {
-                        mentions.push(current_mention.clone());
-                    }
-                    current_mention.clear();
-                    in_mention = false;
-                }
-            }
-            _ => {
-                if in_mention {
-                    current_mention.push(c);
-                }
-            }
+    for pattern in &mention_patterns {
+        for capture in pattern.find_iter(text) {
+            mentions.push(capture.as_str().to_string());
         }
-    }
-
-    // 最後のメンションを処理
-    if in_mention && !current_mention.is_empty() {
-        mentions.push(current_mention);
     }
 
     mentions

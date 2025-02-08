@@ -1,7 +1,7 @@
 mod cline;
-pub(crate) mod mentions;
+pub mod mentions;
 mod prompts;
-mod services;
+pub mod services;
 mod shared;
 
 pub use cline::Cline;

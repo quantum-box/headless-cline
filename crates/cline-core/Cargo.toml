@@ -28,3 +28,4 @@ html2md = "0.2.14"
 [dev-dependencies]
 mockall = "0.13"
 pretty_assertions = "1.4"
+git2 = "0.18.2"

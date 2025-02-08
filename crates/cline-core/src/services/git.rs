@@ -22,6 +22,12 @@ impl GitService {
 
     /// ワーキングディレクトリの変更状態を取得
     pub async fn get_working_state(&self, workspace_path: &Path) -> Result<String> {
+        // Gitリポジトリかどうかを確認
+        let git_dir = workspace_path.join(".git");
+        if !git_dir.exists() {
+            return Err(anyhow::anyhow!("Not a git repository"));
+        }
+
         // git statusで変更状態を取得
         let status_output = self
             .execute_git(&["status", "--porcelain"], workspace_path)
@@ -29,14 +35,15 @@ impl GitService {
         let status = String::from_utf8_lossy(&status_output.stdout);
 
         if status.is_empty() {
-            return Ok("No changes in working directory".to_string());
+            return Ok("No git changes".to_string());
         }
 
         // git diffで詳細な差分を取得
-        let diff_output = self.execute_git(&["diff", "HEAD"], workspace_path).await?;
+        let diff_output = self.execute_git(&["diff"], workspace_path).await?;
         let diff = String::from_utf8_lossy(&diff_output.stdout);
 
         let mut result = String::new();
+        result.push_str("git changes:\n\n");
 
         // 変更ファイルの一覧
         result.push_str("# Changed files\n");
@@ -64,9 +71,7 @@ impl GitService {
         // 詳細な差分
         if !diff.is_empty() {
             result.push_str("\n# Detailed changes\n");
-            result.push_str("```diff\n");
             result.push_str(&diff);
-            result.push_str("```");
         }
 
         Ok(result)
@@ -75,23 +80,65 @@ impl GitService {
     /// コミット情報を取得
     pub async fn get_commit_info(
         &self,
-        commit_hash: &str,
         workspace_path: &Path,
+        commit_hash: &str,
     ) -> Result<String> {
-        let args = &[
-            "show",
-            "--no-patch",
-            "--format=%H %s%n%nAuthor: %an%nDate: %aD%n%n%b",
-            commit_hash,
-        ];
-
-        let output = self.execute_git(args, workspace_path).await?;
-        let commit_info = String::from_utf8_lossy(&output.stdout);
-
-        if commit_info.trim().is_empty() {
-            return Err(anyhow::anyhow!("Commit not found: {}", commit_hash));
+        // Gitリポジトリかどうかを確認
+        let git_dir = workspace_path.join(".git");
+        if !git_dir.exists() {
+            return Err(anyhow::anyhow!("Not a git repository"));
         }
 
-        Ok(commit_info.to_string())
+        // コミット情報を取得
+        let show_output = self
+            .execute_git(
+                &[
+                    "show",
+                    "--format=%H%n%h%n%s%n%an%n%ad%n%b",
+                    "--no-patch",
+                    commit_hash,
+                ],
+                workspace_path,
+            )
+            .await?;
+        let show = String::from_utf8_lossy(&show_output.stdout);
+        let mut lines = show.lines();
+
+        let full_hash = lines.next().unwrap_or_default();
+        let short_hash = lines.next().unwrap_or_default();
+        let subject = lines.next().unwrap_or_default();
+        let author = lines.next().unwrap_or_default();
+        let date = lines.next().unwrap_or_default();
+        let body = lines.collect::<Vec<_>>().join("\n");
+
+        // 変更統計を取得
+        let stat_output = self
+            .execute_git(
+                &["show", "--stat", "--format=", commit_hash],
+                workspace_path,
+            )
+            .await?;
+        let stat = String::from_utf8_lossy(&stat_output.stdout);
+
+        // 詳細な差分を取得
+        let diff_output = self
+            .execute_git(&["show", "--format=", commit_hash], workspace_path)
+            .await?;
+        let diff = String::from_utf8_lossy(&diff_output.stdout);
+
+        let mut result = String::new();
+        result.push_str(&format!("Commit: {} ({})\n", short_hash, full_hash));
+        result.push_str(&format!("Author: {}\n", author));
+        result.push_str(&format!("Date: {}\n\n", date));
+        result.push_str(&format!("Message: {}\n", subject));
+        if !body.is_empty() {
+            result.push_str(&format!("\nDescription:\n{}\n", body));
+        }
+        result.push_str("\nFiles Changed:\n");
+        result.push_str(&stat);
+        result.push_str("\nFull Changes:\n");
+        result.push_str(&diff);
+
+        Ok(result)
     }
 }
