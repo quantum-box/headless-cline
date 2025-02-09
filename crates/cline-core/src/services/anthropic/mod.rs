@@ -11,6 +11,7 @@ use std::{env, fmt::Debug};
 pub struct Message {
     pub role: String,
     pub content: String,
+    pub ts: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -98,6 +99,7 @@ impl AnthropicClientTrait for AnthropicClient {
                     messages: vec![Message {
                         role: "user".to_string(),
                         content: message.to_string(),
+                        ts: None,
                     }],
                     max_tokens: 1000,
                     stream: false,
@@ -138,6 +140,7 @@ impl AnthropicClientTrait for AnthropicClient {
                     messages: vec![Message {
                         role: "user".to_string(),
                         content: user_content,
+                        ts: None,
                     }],
                     max_tokens: 1000,
                     stream: true,

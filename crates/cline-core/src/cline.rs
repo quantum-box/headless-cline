@@ -355,6 +355,7 @@ impl Cline {
         self.add_message(Message {
             role: "assistant".to_string(),
             content: assistant_message.clone(),
+            ts: Some(current_time),
         });
 
         // メッセージにツール使用が含まれているかチェック
@@ -677,19 +678,25 @@ impl Cline {
         let task_dir = self.ensure_task_directory_exists().await?;
         let file_path = task_dir.join(GLOBAL_FILE_NAMES.ui_messages);
 
+        // メッセージをJSONファイルに保存
         fs::write(&file_path, serde_json::to_string(&self.cline_messages)?).await?;
 
-        // APIメトリクスの計算と保存
+        // APIメトリクスの計算
         let api_metrics = get_api_metrics(&self.cline_messages);
-        let task_message = &self.cline_messages[0]; // 最初のメッセージは常にタスクのsay
+
+        // タスクメッセージは常に最初のメッセージ
+        let task_message = &self.cline_messages[0];
+
+        // 最後の関連メッセージを見つける
         let last_relevant_message = self.cline_messages.iter().rev().find(|m| match m {
             ClineMessage::Ask { text, .. } => !matches!(
                 text.as_deref(),
-                Some("resume_task" | "resume_completed_task")
+                Some("resume_task") | Some("resume_completed_task")
             ),
             _ => true,
         });
 
+        // プロバイダーが存在する場合、タスク履歴を更新
         if let Some(provider) = &self.provider {
             provider
                 .update_task_history(TaskHistory {
@@ -747,6 +754,20 @@ impl Cline {
         .await?;
 
         Ok(())
+    }
+
+    pub async fn add_to_api_conversation_history(&mut self, message: Message) -> Result<()> {
+        // タイムスタンプを追加したメッセージを作成
+        let message_with_ts = Message {
+            ts: Some(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as i64),
+            ..message
+        };
+
+        // 会話履歴に追加
+        self.api_conversation_history.push(message_with_ts);
+
+        // 保存
+        self.save_api_conversation_history().await
     }
 
     #[allow(clippy::await_holding_lock)]
