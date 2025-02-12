@@ -1,3 +1,4 @@
+pub mod ai;
 pub mod anthropic;
 pub mod browser;
 pub mod diagnostics;

@@ -24,6 +24,7 @@ chrono = { workspace = true }
 lazy_static = "1.4.0"
 headless_chrome = "1.0.9"
 html2md = "0.2.14"
+similar = "2.4"
 
 [dev-dependencies]
 mockall = "0.13"

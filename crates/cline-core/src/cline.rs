@@ -1,6 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
+use core::net;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -14,6 +15,10 @@ use tokio::fs;
 use uuid::Uuid;
 
 use crate::mentions::{parse_mentions, should_process_mentions};
+use crate::prompts::responses::FormatResponse;
+use crate::services::ai::ContentBlock;
+use crate::services::ai::TextBlock;
+use crate::services::ai::UserContent;
 use crate::services::anthropic::{AnthropicClient, AnthropicClientTrait, Message};
 use crate::services::browser::BrowserSession;
 use crate::services::terminal::TerminalManager;
@@ -142,6 +147,7 @@ pub struct Cline {
     browser_session: Option<Arc<Mutex<BrowserSession>>>,
     abort: bool,
     provider: Option<Arc<dyn Provider + Send + Sync>>,
+    consecutive_mistake_count: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -198,14 +204,6 @@ struct BrowserActionResult {
     screenshot: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UserContent {
-    #[serde(rename = "type")]
-    content_type: String,
-    text: Option<String>,
-    images: Option<Vec<String>>,
-}
-
 lazy_static! {
     static ref MENTION_REGEX: Regex = Regex::new(
         r"@((?:/|\w+://)[^\s]+?|[a-f0-9]{7,40}\b|problems\b|git-changes\b)[.,;:!?]?(?:[\s\r\n]|$)",
@@ -238,6 +236,7 @@ impl Cline {
             browser_session: Some(Arc::new(Mutex::new(BrowserSession::new()))),
             abort: false,
             provider: None,
+            consecutive_mistake_count: 0,
         })
     }
 
@@ -296,7 +295,7 @@ impl Cline {
 
     pub async fn recursively_make_cline_requests(
         &mut self,
-        user_content: String,
+        user_content: UserContent,
         include_file_details: bool,
     ) -> Result<bool> {
         let current_time = SystemTime::now()
@@ -371,54 +370,23 @@ impl Cline {
 
     pub async fn start_task(
         &mut self,
-        task: Option<String>,
-        images: Option<Vec<String>>,
+        task: &Option<String>,
+        images: &Option<Vec<String>>,
     ) -> Result<()> {
         // 会話履歴とメッセージをクリア
         self.cline_messages.clear();
         self.api_conversation_history.clear();
 
-        let current_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as i64;
+        self.say(ClineSay::Text, task, &images, None).await?;
 
-        // 初期メッセージを追加
-        self.add_cline_message(ClineMessage::Say {
-            ts: current_time,
-            text: task.clone(),
-            say: ClineSay::Task,
-            images: images.clone(),
-            partial: None,
-            reasoning: None,
-        });
-
-        // タスク内容を構築
-        let mut task_content = String::new();
-        if let Some(task_text) = task {
-            task_content.push_str(&format!("<task>\n{}\n</task>", task_text));
-        }
-
-        // 環境情報を追加
-        task_content.push_str("\n\n<environment_details>\n");
-        task_content.push_str(&format!("Workspace: {}\n", self.workspace_path.display()));
-        if let Some(instructions) = &self.custom_instructions {
-            task_content.push_str(&format!("Custom Instructions: {}\n", instructions));
-        }
-        task_content.push_str("</environment_details>");
-
-        // 画像情報を追加（もし存在する場合）
-        if let Some(img) = images {
-            for (i, image_data) in img.iter().enumerate() {
-                task_content.push_str(&format!("\n\n<image_{}>", i + 1));
-                task_content.push_str(image_data);
-                task_content.push_str(&format!("</image_{}>", i + 1));
-            }
-        }
+        let image_blocks = FormatResponse::image_blocks(images.clone());
 
         // タスクを開始
-        self.recursively_make_cline_requests(task_content, true)
-            .await?;
+        let mut content_blocks = vec![ContentBlock::Text(TextBlock {
+            text: format!("<task>\n{}\n</task>", task.clone().unwrap_or_default()),
+        })];
+        content_blocks.extend(image_blocks);
+        self.initiate_task_loop(content_blocks).await?;
 
         Ok(())
     }
@@ -522,9 +490,9 @@ impl Cline {
 
     pub async fn say(
         &mut self,
-        _say_type: String,
-        text: Option<String>,
-        images: Option<Vec<String>>,
+        say_type: ClineSay,
+        text: &Option<String>,
+        images: &Option<Vec<String>>,
         partial: Option<bool>,
     ) -> Result<()> {
         let current_time = SystemTime::now()
@@ -551,9 +519,9 @@ impl Cline {
                         self.cline_messages.pop();
                         self.add_cline_message(ClineMessage::Say {
                             ts,
-                            text,
+                            text: text.clone(),
                             say: ClineSay::Text,
-                            images,
+                            images: images.clone(),
                             partial: Some(true),
                             reasoning: None,
                         });
@@ -562,9 +530,9 @@ impl Cline {
                     // 新しい部分メッセージを追加
                     self.add_cline_message(ClineMessage::Say {
                         ts: current_time,
-                        text,
+                        text: text.clone(),
                         say: ClineSay::Text,
-                        images,
+                        images: images.clone(),
                         partial: Some(true),
                         reasoning: None,
                     });
@@ -576,9 +544,9 @@ impl Cline {
                         self.cline_messages.pop();
                         self.add_cline_message(ClineMessage::Say {
                             ts,
-                            text,
+                            text: text.clone(),
                             say: ClineSay::Text,
-                            images,
+                            images: images.clone(),
                             partial: Some(false),
                             reasoning: None,
                         });
@@ -586,9 +554,9 @@ impl Cline {
                 } else {
                     self.add_cline_message(ClineMessage::Say {
                         ts: current_time,
-                        text,
+                        text: text.clone(),
                         say: ClineSay::Text,
-                        images,
+                        images: images.clone(),
                         partial: Some(false),
                         reasoning: None,
                     });
@@ -598,9 +566,9 @@ impl Cline {
             // 通常のメッセージ
             self.add_cline_message(ClineMessage::Say {
                 ts: current_time,
-                text,
+                text: text.clone(),
                 say: ClineSay::Text,
-                images,
+                images: images.clone(),
                 partial: None,
                 reasoning: None,
             });
@@ -609,41 +577,28 @@ impl Cline {
         Ok(())
     }
 
-    pub async fn initiate_task_loop(
-        &mut self,
-        initial_task: Option<String>,
-        images: Option<Vec<String>>,
-    ) -> Result<()> {
-        // タスクの初期化
-        self.start_task(initial_task, images).await?;
+    pub async fn initiate_task_loop(&mut self, user_content: UserContent) -> Result<()> {
+        let mut next_user_content = user_content;
+        let mut include_file_details = true;
 
-        // タスクループの開始
         loop {
-            // ストリームの読み込みが完了しているか確認
-            if !self.did_complete_reading_stream {
-                continue;
+            let did_end_loop = self
+                .recursively_make_cline_requests(user_content, include_file_details)
+                .await?;
+            include_file_details = false;
+
+            if did_end_loop {
+                break;
+            } else {
+                next_user_content = vec![ContentBlock::Text(TextBlock {
+                    text: FormatResponse::no_tools_used(),
+                })];
+                self.consecutive_mistake_count += 1;
             }
 
-            // ツールが拒否されたか確認
-            if self.did_reject_tool {
-                self.did_reject_tool = false;
-                continue;
+            if self.abort {
+                break;
             }
-
-            // ツールが使用済みか確認
-            if self.did_already_use_tool {
-                self.did_already_use_tool = false;
-                // ツール使用後の処理を実行
-                let next_content =
-                    "Tool execution completed. Please proceed with the next step.".to_string();
-                self.recursively_make_cline_requests(next_content, false)
-                    .await?;
-                continue;
-            }
-
-            // タスクが完了したかどうかを確認
-            // TODO: タスク完了の条件を実装
-            break;
         }
 
         Ok(())
@@ -825,7 +780,7 @@ impl Cline {
             param_name
         );
 
-        self.say("error".to_string(), Some(error_message.clone()), None, None)
+        self.say(ClineSay::Error, &Some(error_message.clone()), &None, None)
             .await?;
 
         Ok(format_response::tool_error(
@@ -987,24 +942,12 @@ impl Cline {
                     let mut browser = browser_session.lock().unwrap();
                     parse_mentions(&text, &mut browser, &self.workspace_path).await?
                 };
-                Ok(UserContent {
-                    content_type: "text".to_string(),
-                    text: Some(parsed_text),
-                    images: None,
-                })
+                Ok(vec![ContentBlock::Text(TextBlock { text: parsed_text })])
             } else {
-                Ok(UserContent {
-                    content_type: "text".to_string(),
-                    text: Some(text),
-                    images: None,
-                })
+                Ok(vec![ContentBlock::Text(TextBlock { text })])
             }
         } else {
-            Ok(UserContent {
-                content_type: "text".to_string(),
-                text: Some(text),
-                images: None,
-            })
+            Ok(vec![ContentBlock::Text(TextBlock { text })])
         }
     }
 
