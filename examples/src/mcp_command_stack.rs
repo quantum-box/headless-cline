@@ -38,9 +38,9 @@ async fn main() -> Result<()> {
     if servers.is_empty() {
         tracing::info!("No servers found, setting up a sample server");
         setup_sample_server(&settings_path)?;
-        
+
         let mcp_hub = McpHub::new(servers_dir.clone(), settings_path.clone())?;
-        
+
         let servers = mcp_hub.get_servers();
         tracing::info!("Available servers after setup: {}", servers.len());
         for server in &servers {
@@ -52,13 +52,9 @@ async fn main() -> Result<()> {
         if let Some(tools) = &server.tools {
             for tool in tools {
                 tracing::info!("Tool: {}, Description: {}", tool.name, tool.description);
-                
+
                 let result = mcp_hub
-                    .call_tool(
-                        &server.name,
-                        &tool.name,
-                        Some(json!({})),
-                    )
+                    .call_tool(&server.name, &tool.name, Some(json!({})))
                     .await;
 
                 match result {
@@ -69,7 +65,7 @@ async fn main() -> Result<()> {
                         tracing::error!("Error calling tool: {:?}", e);
                     }
                 }
-                
+
                 break; // 最初のツールのみテスト
             }
         }
@@ -97,13 +93,12 @@ fn setup_sample_server(settings_path: &PathBuf) -> Result<()> {
         always_allow: None,
         timeout: None,
     };
-    
-    settings.mcp_servers.insert("sample-server".to_string(), config);
 
-    std::fs::write(
-        settings_path,
-        serde_json::to_string_pretty(&settings)?,
-    )?;
+    settings
+        .mcp_servers
+        .insert("sample-server".to_string(), config);
+
+    std::fs::write(settings_path, serde_json::to_string_pretty(&settings)?)?;
 
     tracing::info!("Sample server configuration saved");
     Ok(())
